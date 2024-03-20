@@ -3,7 +3,6 @@ import spectral.io.envi as envi
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import savemat
-import bicubic_interpolation as bi
 
 # this function assumes listWavelength is in ascending order    
 def find_RGB_bands(listWavelength):
@@ -100,11 +99,14 @@ def create_envi_header(filename, dictMeta):
 
 
 def save_hsi_to_mat(hsi, filename):
-    # 获取所有波段的编号
     bands = range(hsi.nbands)
     data = hsi.read_bands(bands)
-    data = data.astype(np.float64)  # 使用np.float64确保转换为double类型#删除则为uint16
-    mat_dict = {'HSI': data}
+    data = data.astype(np.float32)  # Convert to float32 for compatibility
+    # Assuming 'wavelength' is the key in the metadata dictionary for wavelength information
+    wavelengths = hsi.metadata.get('wavelength', [])
+    # Convert string wavelengths to float, if they are not already floats
+    wavelengths = [float(w) for w in wavelengths]
+    mat_dict = {'HSI': data, 'wavelength': wavelengths}
     savemat(filename, mat_dict)
 
 def show_rgb(hsi):
@@ -138,5 +140,5 @@ print(hsi)
 file_name = "test_data.mat"
 save_hsi_to_mat(hsi, file_name)
 #show_rgb
-#show_rgb(hsi)
+show_rgb(hsi)
 
