@@ -1,0 +1,1 @@
+python main.py train --dataset_name 'appf' --n_blocks 4 --epochs 200 --batch_size 48 --model_title "MSDformer" --n_subs 8 --n_ovls 2 --n_feats 240 --n_scale 2 --gpus "0,1"
