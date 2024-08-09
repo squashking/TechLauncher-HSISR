@@ -34,5 +34,3 @@ modify_hdr_file(hdr_file_path, new_metadata)
 # 读取并显示修改后的 HDR 文件内容
 hdr_metadata = read_hdr_file(hdr_file_path)
 print(hdr_metadata)
-
-# ... existing code ...

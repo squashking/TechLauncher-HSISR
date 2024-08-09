@@ -79,19 +79,8 @@ def create_envi_header(filename, dictMeta):
         file.write(','.join(map(str, dictMeta['WAVELENGTHS'])))
         file.write("}\n")
 
-
-# bil_path ="data/test_path/0ori_data/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.bil"
-# header_path = "data/test_path/0ori_data/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.hdr"
-# save_path_mat = 'data/test_path/1hst_to_mat/test1.mat'
-# hsi_to_mat(bil_path,header_path,save_path_mat)
-#
-# mat_path = 'data/test_path/1hst_to_mat/test1.mat'
-# save_path_hsi = 'data/test_path/2mat_to_hsi/test1.hdr'
-# mat_to_hsi(mat_path,save_path_hsi)
-
 mat_path = 'data/server_data/00005.mat'
 save_path_hsi = 'Result_flower/Original low resolution HSI file/LR.hdr'
-#save_path_hsi = 'Result/Original low resolution HSI file/result.hdr'
 tag = 'ms'
 mat_to_hsi(mat_path,save_path_hsi,tag)
 

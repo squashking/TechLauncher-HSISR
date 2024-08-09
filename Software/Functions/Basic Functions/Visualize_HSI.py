@@ -2,7 +2,6 @@ from spectral import *
 import spectral.io.envi as envi
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.io import savemat
 
 # this function assumes listWavelength is in ascending order    
 def find_RGB_bands(listWavelength):
@@ -96,17 +95,6 @@ def create_envi_header(filename, dictMeta):
         file.write("}\n")
 
 
-def save_hsi_to_mat(hsi, filename):
-    bands = range(hsi.nbands)
-    data = hsi.read_bands(bands)
-    data = data.astype(np.float32)  # Convert to float32 for compatibility
-    # Assuming 'wavelength' is the key in the metadata dictionary for wavelength information
-    wavelengths = hsi.metadata.get('wavelength', [])
-    # Convert string wavelengths to float, if they are not already floats
-    wavelengths = [float(w) for w in wavelengths]
-    mat_dict = {'HSI': data, 'wavelength': wavelengths}
-    savemat(filename, mat_dict)
-
 def show_rgb(hsi,save_path):
     tuple_rgb_bands = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])  # metadata['wavelength'] is read as string; for CSIRO image, can use self.hsi.bands.centers
     rgb_image = get_rgb(hsi, tuple_rgb_bands)  # (100, 54, 31)
@@ -131,20 +119,9 @@ def load_image(image_path,headerPath):
     hsi = envi.open(headerPath, image_path)
     return hsi
 
-
-# header_path = "data/test_path/2mat_to_hsi/test1.hdr"
-# bil_path = "data/test_path/2mat_to_hsi/test1.bil"
-# header_path = "E:/新建文件夹/Result/Original low resolution HSI file/LR.hdr"
-# bil_path = "E:/新建文件夹/Result/Original low resolution HSI file/LR.bil"
-# header_path = "E:/新建文件夹/Result/Bicubic result/bicubic.hdr"
-# bil_path = "E:/新建文件夹/Result/Bicubic result/bicubic.bil"
 header_path = "Result_flower/SR result/result.hdr"
 bil_path = "Result_flower/SR result/result.bil"
 save_path = "Result_flower/SR result/result.png"
 hsi = load_image(bil_path,header_path)
-# change into mat
-#file_name = "test_data.mat"
-#save_hsi_to_mat(hsi, file_name)
-#show_rgb
 show_rgb(hsi,save_path)
 
