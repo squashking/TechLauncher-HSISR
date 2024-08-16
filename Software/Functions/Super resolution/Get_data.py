@@ -1,6 +1,5 @@
 import numpy as np
 import torch.utils.data as data
-import scipy.io as sio
 import torch
 import h5py
 
