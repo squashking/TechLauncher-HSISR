@@ -13,7 +13,7 @@ result_path = './result_matdata'
 
 def get_fin_result(fin_data_dir,result_path):
     model_name = './weights/fin_msdformer.pth'
-    device = torch.device("cpu")  # 强制使用 CPU
+    device = torch.device("cpu")
     start_time = time.time()
 
     for filename in os.listdir(fin_data_dir):
