@@ -1,8 +1,6 @@
 import torch.nn as nn
 import math
 import torch
-import torch.nn.functional as F
-
 
 def default_conv(in_channels, out_channels, kernel_size, stride=1, bias=True, dilation=1):
     if dilation==1:

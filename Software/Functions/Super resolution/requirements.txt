@@ -1,3 +1,8 @@
 torch
 scipy
 torchnet
+h5py
+einops
+timm
+matplotlib
+spectral
