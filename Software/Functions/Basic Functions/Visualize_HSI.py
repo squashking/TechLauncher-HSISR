@@ -2,7 +2,7 @@ from spectral import *
 import spectral.io.envi as envi
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
 # this function assumes listWavelength is in ascending order    
 def find_RGB_bands(listWavelength):
     R_wavelength = 682.5 #(625+740)/2 
@@ -119,9 +119,327 @@ def load_image(image_path,headerPath):
     hsi = envi.open(headerPath, image_path)
     return hsi
 
-header_path = "Result_flower/SR result/result.hdr"
-bil_path = "Result_flower/SR result/result.bil"
-save_path = "Result_flower/SR result/result.png"
+def calculate_ndvi(hsi):
+    """
+    Calculate NDVI from hyperspectral image data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+
+    Returns:
+    - ndvi_array: Calculated NDVI as a numpy array.
+    """
+    # Assume Near Infrared (NIR) band is around 800 nm and Red band is around 670 nm
+    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]
+    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]
+
+    nir_band = hsi.read_band(nir_band_index)
+    red_band = hsi.read_band(red_band_index)
+
+    ndvi_array = (nir_band - red_band) / (nir_band + red_band + 1e-10)  # Add small value to avoid division by zero
+    return ndvi_array
+
+
+def visualize_ndvi(hsi, save_path):
+    """
+    Visualize NDVI image from hyperspectral data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+    - save_path: File path to save the NDVI image.
+    """
+    ndvi_array = calculate_ndvi(hsi)
+    ndvi_image = (ndvi_array - np.min(ndvi_array)) / (np.max(ndvi_array) - np.min(ndvi_array))  # Normalize to 0-1
+
+    plt.imshow(ndvi_image, cmap='RdYlGn')
+    plt.colorbar(label='NDVI')
+    plt.title("NDVI Image")
+    plt.axis('off')
+    plt.show()
+    plt.imsave(save_path, ndvi_image, cmap='RdYlGn')
+
+
+def calculate_evi(hsi):
+    """
+    Calculate EVI from hyperspectral image data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+
+    Returns:
+    - evi_array: Calculated EVI as a numpy array.
+    """
+    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]
+    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]
+    blue_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[2]
+
+    nir_band = hsi.read_band(nir_band_index)
+    red_band = hsi.read_band(red_band_index)
+    blue_band = hsi.read_band(blue_band_index)
+
+    # Calculate EVI
+    numerator = 2.5 * (nir_band - red_band)
+    denominator = (nir_band + 6 * red_band - 7.5 * blue_band + 1)
+
+    # Ignore divide by zero and invalid warnings
+    with np.errstate(divide='ignore', invalid='ignore'):
+        evi_array = numerator / denominator
+        evi_array[np.isnan(evi_array)] = 0  # Set NaNs to 0
+
+    return evi_array
+
+
+def visualize_evi(hsi, save_path):
+    """
+    Visualize EVI image from hyperspectral data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+    - save_path: File path to save the EVI image.
+    """
+    evi_array = calculate_evi(hsi)
+
+    # Replace NaNs and Infs with finite numbers (0)
+    evi_array = np.nan_to_num(evi_array, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Normalize EVI for visualization
+    min_val = np.min(evi_array)
+    max_val = np.max(evi_array)
+
+    # Ensure the denominator is not zero
+    range_val = max_val - min_val
+    if range_val == 0:
+        range_val = 1e-10
+
+    evi_image = (evi_array - min_val) / range_val
+
+    plt.imshow(evi_image, cmap='RdYlGn')
+    plt.colorbar(label='EVI')
+    plt.title("EVI Image")
+    plt.axis('off')
+    plt.show()
+    plt.imsave(save_path, evi_image, cmap='RdYlGn')
+
+
+def calculate_mcari(hsi):
+    """
+    Calculate MCARI from hyperspectral image data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+
+    Returns:
+    - mcari_array: Calculated MCARI as a numpy array.
+    """
+    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]
+    green_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[
+                           1] - 1  # Assuming green band is close to red
+    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]
+
+    red_band = hsi.read_band(red_band_index)
+    green_band = hsi.read_band(green_band_index)
+    nir_band = hsi.read_band(nir_band_index)
+
+    # Calculate MCARI
+    with np.errstate(divide='ignore', invalid='ignore'):
+        mcari_array = ((nir_band - red_band) - 0.2 * (nir_band - green_band) * (nir_band / red_band))
+        mcari_array[np.isnan(mcari_array)] = 0  # Set NaNs to 0
+
+    # Replace NaNs and Infs with finite numbers (0)
+    mcari_array = np.nan_to_num(mcari_array, nan=0.0, posinf=0.0, neginf=0.0)
+
+    return mcari_array
+
+
+def visualize_mcari(hsi, save_path):
+    """
+    Visualize MCARI image from hyperspectral data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+    - save_path: File path to save the MCARI image.
+    """
+    mcari_array = calculate_mcari(hsi)
+
+    # Normalize MCARI for visualization
+    min_val = np.min(mcari_array)
+    max_val = np.max(mcari_array)
+
+    # Ensure the denominator is not zero
+    range_val = max_val - min_val
+    if range_val == 0:
+        range_val = 1e-10
+
+    mcari_image = (mcari_array - min_val) / range_val
+
+    plt.imshow(mcari_image, cmap='viridis')
+    plt.colorbar(label='MCARI')
+    plt.title("MCARI Image")
+    plt.axis('off')
+    plt.show()
+    plt.imsave(save_path, mcari_image, cmap='viridis')
+
+
+def calculate_mtvi(hsi):
+    """
+    Calculate MTVI from hyperspectral image data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+
+    Returns:
+    - mtvi_array: Calculated MTVI as a numpy array.
+    """
+    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]  # NIR around 800 nm
+    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]  # Red around 670 nm
+    green_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1] - 1  # Green around 550 nm
+
+    nir_band = hsi.read_band(nir_band_index)
+    red_band = hsi.read_band(red_band_index)
+    green_band = hsi.read_band(green_band_index)
+
+    # Calculate MTVI components
+    numerator = 1.2 * (1.2 * (nir_band - green_band) - 2.5 * (red_band - green_band))
+    denominator_expression = (2 * nir_band + 1) ** 2 - (6 * nir_band - 5 * np.sqrt(red_band)) - 0.5
+
+    # Clip the denominator_expression to avoid taking sqrt of negative values
+    denominator_expression_clipped = np.clip(denominator_expression, 0, None)
+
+    # Adding a small constant to the denominator to avoid divide by zero
+    denominator_sqrt = np.sqrt(denominator_expression_clipped) + 1e-10
+
+    # Calculate MTVI
+    with np.errstate(divide='ignore', invalid='ignore'):
+        mtvi_array = numerator / denominator_sqrt
+        mtvi_array[np.isnan(mtvi_array)] = 0  # Set NaNs to 0
+
+    return mtvi_array
+
+
+def visualize_mtvi(hsi, save_path):
+    """
+    Visualize MTVI image from hyperspectral data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+    - save_path: File path to save the MTVI image.
+    """
+    mtvi_array = calculate_mtvi(hsi)
+
+    # Replace NaNs and Infs with finite numbers (0)
+    mtvi_array = np.nan_to_num(mtvi_array, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Normalize MTVI for visualization
+    min_val = np.min(mtvi_array)
+    max_val = np.max(mtvi_array)
+
+    # Ensure the denominator is not zero
+    range_val = max_val - min_val
+    if range_val == 0:
+        range_val = 1e-10
+
+    mtvi_image = (mtvi_array - min_val) / range_val
+
+    plt.imshow(mtvi_image, cmap='viridis')
+    plt.colorbar(label='MTVI')
+    plt.title("MTVI Image")
+    plt.axis('off')
+    plt.show()
+    plt.imsave(save_path, mtvi_image, cmap='viridis')
+
+
+def calculate_osavi(hsi):
+    """
+    Calculate OSAVI from hyperspectral image data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+
+    Returns:
+    - osavi_array: Calculated OSAVI as a numpy array.
+    """
+    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]  # NIR around 800 nm
+    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]  # Red around 670 nm
+
+    nir_band = hsi.read_band(nir_band_index)
+    red_band = hsi.read_band(red_band_index)
+
+    osavi_array = (nir_band - red_band) / (nir_band + red_band + 0.16)
+    return osavi_array
+
+
+def visualize_osavi(hsi, save_path):
+    """
+    Visualize OSAVI image from hyperspectral data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+    - save_path: File path to save the OSAVI image.
+    """
+    osavi_array = calculate_osavi(hsi)
+    osavi_image = (osavi_array - np.min(osavi_array)) / (np.max(osavi_array) - np.min(osavi_array))
+
+    plt.imshow(osavi_image, cmap='RdYlGn')
+    plt.colorbar(label='OSAVI')
+    plt.title("OSAVI Image")
+    plt.axis('off')
+    plt.show()
+    plt.imsave(save_path, osavi_image, cmap='RdYlGn')
+
+
+def calculate_pri(hsi):
+    """
+    Calculate PRI from hyperspectral image data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+
+    Returns:
+    - pri_array: Calculated PRI as a numpy array.
+    """
+    band_531_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[
+                         1] - 2  # Assuming 531 nm is near green
+    band_570_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1] - 1  # Assuming 570 nm is green
+
+    band_531 = hsi.read_band(band_531_index)
+    band_570 = hsi.read_band(band_570_index)
+
+    pri_array = (band_531 - band_570) / (band_531 + band_570 + 1e-10)
+    return pri_array
+
+
+def visualize_pri(hsi, save_path):
+    """
+    Visualize PRI image from hyperspectral data.
+
+    Parameters:
+    - hsi: Hyperspectral image object loaded with spectral library.
+    - save_path: File path to save the PRI image.
+    """
+    pri_array = calculate_pri(hsi)
+    pri_image = (pri_array - np.min(pri_array)) / (np.max(pri_array) - np.min(pri_array))
+
+    plt.imshow(pri_image, cmap='Spectral')
+    plt.colorbar(label='PRI')
+    plt.title("PRI Image")
+    plt.axis('off')
+    plt.show()
+    plt.imsave(save_path, pri_image, cmap='Spectral')
+
+def visualise_all(hsi, save_path_list):
+    show_rgb(hsi, save_path_list[0])
+    visualize_ndvi(hsi, save_path_list[1])
+    visualize_evi(hsi, save_path_list[2])
+    visualize_mcari(hsi, save_path_list[3])
+    visualize_mtvi(hsi, save_path_list[4])
+    visualize_osavi(hsi, save_path_list[5])
+    visualize_pri(hsi, save_path_list[6])
+
+os.chdir("D:/Desktop files/ANU master/comp8715 S2/visualise")
+header_path = "2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.hdr"
+bil_path = "2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.bil"
 hsi = load_image(bil_path,header_path)
-show_rgb(hsi,save_path)
+all_format = ['rgb', 'ndvi', 'evi', 'mcari', 'mtvi', 'osavi', 'pri']
+save_path_list = ["result_" + all_format[i] + ".png" for i in range(0, len(all_format))]
+visualise_all(hsi, save_path_list)
 
