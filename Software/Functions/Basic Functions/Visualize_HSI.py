@@ -140,7 +140,7 @@ def calculate_ndvi(hsi):
     return ndvi_array
 
 
-def visualize_ndvi(hsi, save_path):
+def show_ndvi(hsi, save_path):
     """
     Visualize NDVI image from hyperspectral data.
 
@@ -178,7 +178,7 @@ def calculate_evi(hsi):
     blue_band = hsi.read_band(blue_band_index)
 
     # Calculate EVI
-    numerator = 2.5 * (nir_band - red_band)
+    numerator = nir_band - red_band
     denominator = (nir_band + 6 * red_band - 7.5 * blue_band + 1)
 
     # Ignore divide by zero and invalid warnings
@@ -189,7 +189,7 @@ def calculate_evi(hsi):
     return evi_array
 
 
-def visualize_evi(hsi, save_path):
+def show_evi(hsi, save_path):
     """
     Visualize EVI image from hyperspectral data.
 
@@ -231,27 +231,25 @@ def calculate_mcari(hsi):
     Returns:
     - mcari_array: Calculated MCARI as a numpy array.
     """
-    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]
-    green_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[
-                           1] - 1  # Assuming green band is close to red
-    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]
+    # Find the band indices corresponding to 700 nm, 670 nm, and 550 nm
+    band_700_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]  # Assuming 700 nm is near NIR
+    band_670_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]  # Assuming 670 nm is red
+    band_550_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1] - 1  # Assuming 550 nm is green
 
-    red_band = hsi.read_band(red_band_index)
-    green_band = hsi.read_band(green_band_index)
-    nir_band = hsi.read_band(nir_band_index)
+    band_700 = hsi.read_band(band_700_index)
+    band_670 = hsi.read_band(band_670_index)
+    band_550 = hsi.read_band(band_550_index)
 
     # Calculate MCARI
     with np.errstate(divide='ignore', invalid='ignore'):
-        mcari_array = ((nir_band - red_band) - 0.2 * (nir_band - green_band) * (nir_band / red_band))
+        mcari_array = (band_700 - band_670) - 0.2 * (band_700 - band_550) * (
+                    band_700 / (band_670 + 1e-10))  # Add small constant to avoid divide by zero
         mcari_array[np.isnan(mcari_array)] = 0  # Set NaNs to 0
-
-    # Replace NaNs and Infs with finite numbers (0)
-    mcari_array = np.nan_to_num(mcari_array, nan=0.0, posinf=0.0, neginf=0.0)
 
     return mcari_array
 
 
-def visualize_mcari(hsi, save_path):
+def show_mcari(hsi, save_path):
     """
     Visualize MCARI image from hyperspectral data.
 
@@ -260,6 +258,9 @@ def visualize_mcari(hsi, save_path):
     - save_path: File path to save the MCARI image.
     """
     mcari_array = calculate_mcari(hsi)
+
+    # Replace NaNs and Infs with finite numbers (0)
+    mcari_array = np.nan_to_num(mcari_array, nan=0.0, posinf=0.0, neginf=0.0)
 
     # Normalize MCARI for visualization
     min_val = np.min(mcari_array)
@@ -290,33 +291,22 @@ def calculate_mtvi(hsi):
     Returns:
     - mtvi_array: Calculated MTVI as a numpy array.
     """
-    nir_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]  # NIR around 800 nm
-    red_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]  # Red around 670 nm
-    green_band_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1] - 1  # Green around 550 nm
+    # Find the band indices corresponding to 800 nm, 670 nm, and 550 nm
+    band_800_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[0]  # Assuming 800 nm is NIR
+    band_670_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1]  # Assuming 670 nm is red
+    band_550_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1] - 1  # Assuming 550 nm is green
 
-    nir_band = hsi.read_band(nir_band_index)
-    red_band = hsi.read_band(red_band_index)
-    green_band = hsi.read_band(green_band_index)
-
-    # Calculate MTVI components
-    numerator = 1.2 * (1.2 * (nir_band - green_band) - 2.5 * (red_band - green_band))
-    denominator_expression = (2 * nir_band + 1) ** 2 - (6 * nir_band - 5 * np.sqrt(red_band)) - 0.5
-
-    # Clip the denominator_expression to avoid taking sqrt of negative values
-    denominator_expression_clipped = np.clip(denominator_expression, 0, None)
-
-    # Adding a small constant to the denominator to avoid divide by zero
-    denominator_sqrt = np.sqrt(denominator_expression_clipped) + 1e-10
+    band_800 = hsi.read_band(band_800_index)
+    band_670 = hsi.read_band(band_670_index)
+    band_550 = hsi.read_band(band_550_index)
 
     # Calculate MTVI
-    with np.errstate(divide='ignore', invalid='ignore'):
-        mtvi_array = numerator / denominator_sqrt
-        mtvi_array[np.isnan(mtvi_array)] = 0  # Set NaNs to 0
+    mtvi_array = 1.2 * ((1.2 * (band_800 - band_550)) - (2.5 * (band_670 - band_550)))
 
     return mtvi_array
 
 
-def visualize_mtvi(hsi, save_path):
+def show_mtvi(hsi, save_path):
     """
     Visualize MTVI image from hyperspectral data.
 
@@ -368,7 +358,7 @@ def calculate_osavi(hsi):
     return osavi_array
 
 
-def visualize_osavi(hsi, save_path):
+def show_osavi(hsi, save_path):
     """
     Visualize OSAVI image from hyperspectral data.
 
@@ -397,6 +387,7 @@ def calculate_pri(hsi):
     Returns:
     - pri_array: Calculated PRI as a numpy array.
     """
+    # Find the band indices corresponding to 531 nm and 570 nm
     band_531_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[
                          1] - 2  # Assuming 531 nm is near green
     band_570_index = find_RGB_bands([float(i) for i in hsi.metadata['wavelength']])[1] - 1  # Assuming 570 nm is green
@@ -404,11 +395,15 @@ def calculate_pri(hsi):
     band_531 = hsi.read_band(band_531_index)
     band_570 = hsi.read_band(band_570_index)
 
-    pri_array = (band_531 - band_570) / (band_531 + band_570 + 1e-10)
+    # Calculate PRI
+    with np.errstate(divide='ignore', invalid='ignore'):
+        pri_array = (band_531 - band_570) / (band_531 + band_570 + 1e-10)  # Add small constant to avoid divide by zero
+        pri_array[np.isnan(pri_array)] = 0  # Set NaNs to 0
+
     return pri_array
 
 
-def visualize_pri(hsi, save_path):
+def show_pri(hsi, save_path):
     """
     Visualize PRI image from hyperspectral data.
 
@@ -417,7 +412,20 @@ def visualize_pri(hsi, save_path):
     - save_path: File path to save the PRI image.
     """
     pri_array = calculate_pri(hsi)
-    pri_image = (pri_array - np.min(pri_array)) / (np.max(pri_array) - np.min(pri_array))
+
+    # Replace NaNs and Infs with finite numbers (0)
+    pri_array = np.nan_to_num(pri_array, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Normalize PRI for visualization
+    min_val = np.min(pri_array)
+    max_val = np.max(pri_array)
+
+    # Ensure the denominator is not zero
+    range_val = max_val - min_val
+    if range_val == 0:
+        range_val = 1e-10
+
+    pri_image = (pri_array - min_val) / range_val
 
     plt.imshow(pri_image, cmap='Spectral')
     plt.colorbar(label='PRI')
@@ -426,14 +434,15 @@ def visualize_pri(hsi, save_path):
     plt.show()
     plt.imsave(save_path, pri_image, cmap='Spectral')
 
+
 def visualise_all(hsi, save_path_list):
     show_rgb(hsi, save_path_list[0])
-    visualize_ndvi(hsi, save_path_list[1])
-    visualize_evi(hsi, save_path_list[2])
-    visualize_mcari(hsi, save_path_list[3])
-    visualize_mtvi(hsi, save_path_list[4])
-    visualize_osavi(hsi, save_path_list[5])
-    visualize_pri(hsi, save_path_list[6])
+    show_ndvi(hsi, save_path_list[1])
+    show_evi(hsi, save_path_list[2])
+    show_mcari(hsi, save_path_list[3])
+    show_mtvi(hsi, save_path_list[4])
+    show_osavi(hsi, save_path_list[5])
+    show_pri(hsi, save_path_list[6])
 
 os.chdir("D:/Desktop files/ANU master/comp8715 S2/visualise")
 header_path = "2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.hdr"
