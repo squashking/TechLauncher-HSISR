@@ -93,6 +93,7 @@ def change_shape(filePath,save_path,scale_factor):
                 key, value = parts[0], int(parts[1].strip())
                 new_value = 4
                 file.write(f"{key} = {new_value}\n")
+
             else:
                 file.write(line)
 
