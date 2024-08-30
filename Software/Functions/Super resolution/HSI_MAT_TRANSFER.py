@@ -34,7 +34,6 @@ def hsi_to_mat(input_dir, output_dir):
 def mat_to_hsi(ori_hsi_path,result_mat_path,save_path_hsi,scale_factor):
     mat_path = os.path.join(result_mat_path, [f for f in os.listdir(result_mat_path) if f.endswith('.mat')][0])
     try:
-
         image_data = loadmat(mat_path)
         image = image_data['result']
         image = image.squeeze()
@@ -89,6 +88,12 @@ def change_shape(filePath,save_path,scale_factor):
                 key, value = parts[0], int(parts[1].strip())
                 new_value = value * scale_factor
                 file.write(f"{key} = {new_value}\n")
+            elif line.startswith("data type ="):
+                parts = line.strip().split("=")
+                key, value = parts[0], int(parts[1].strip())
+                new_value = 4
+                file.write(f"{key} = {new_value}\n")
+
             else:
                 file.write(line)
 
