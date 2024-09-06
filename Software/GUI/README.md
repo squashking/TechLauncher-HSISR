@@ -53,8 +53,7 @@ python main_window.py
 
 4. **Viewing Results**:
    2. After classification, the output image will be displayed in the window. Results are also saved as `gtresults.png` in the `result` folder.
-   
-      <img src="/Users/zhenwang/Library/Application Support/typora-user-images/image-20240906145714465.png" alt="image-20240906145714465" style="zoom: 33%;" />
+	    <img src="demo.png" alt="image-20240906145714465" style="zoom: 50%;" />
 
 ## Directory Structure
 
