@@ -11,7 +11,6 @@ from PyQt6.QtCore import Qt
 from hyperspectral_classifier import HyperspectralClassifier 
 
 def find_rgb_bands(wavelengths):
-    # You can adjust these depending on your data's exact wavelength.
     R_wavelength = 682.5  # Red wavelength
     G_wavelength = 532.5  # Green wavelength
     B_wavelength = 472.5  # Blue wavelength
