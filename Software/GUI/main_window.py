@@ -25,6 +25,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
+        self.loaded_image = None  # To store the loaded image for Vis Window
         self.setWindowTitle("MainWindow")
         self.setGeometry(100, 100, 1024, 768)
 
@@ -127,16 +128,14 @@ class MainWindow(QMainWindow):
 
     def load_image(self):
         """Loads the hyperspectral image and displays its RGB composite."""
-        
         # Open file dialog to select the hyperspectral image file
         print("Opening file dialog to select .bil file...")
         image_path, _ = QFileDialog.getOpenFileName(self, 'Open file', None, "Hyperspectral Images (*.bil *.bip *.bsq)")
         
-        # Check if the user selected a valid file
         if not image_path:
             print("No file selected or invalid file.")
             return
-        
+
         print(f"Selected image file: {image_path}")
         
         # Get corresponding header file
@@ -145,16 +144,16 @@ class MainWindow(QMainWindow):
         if not os.path.exists(header_path):
             print(f"Header file not found at: {header_path}")
             return
-        
+
         print(f"Header file located at: {header_path}")
         
         # Load hyperspectral image using spectral library
         self.hsi = envi.open(header_path, image_path)
         print(f"Hyperspectral image loaded successfully from {image_path}")
         
-        # Extract the wavelengths (this might depend on how the .hdr file is formatted)
+        # Extract the wavelengths
         wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
-        print(f"Extracted wavelengths: {wavelengths[:10]} ...")  # Print first 10 wavelengths
+        print(f"Extracted wavelengths: {wavelengths[:10]} ...")
         
         # Find RGB bands
         r_band, g_band, b_band = find_rgb_bands(wavelengths)
@@ -172,16 +171,19 @@ class MainWindow(QMainWindow):
         
         print(f"Image stacked and normalized: shape={img_rgb.shape}")
         
-        # Convert to QImage and display in GUI
+        # Convert to QImage and store the result in self.loaded_image for both visualization and classification
         height, width, _ = img_rgb.shape
         bytes_per_line = 3 * width
         qimage = QImage(img_rgb.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
         pixmap = QPixmap(qimage)
         
-        # Update the label in your GUI with the new image
-        self.image_label.setPixmap(pixmap)
+        # Store the loaded RGB image for later use in both classification and visualization
+        self.loaded_image = pixmap
+
+        # Display the image in classification tab (if you're in the classification tab)
+        self.image_label.setPixmap(self.loaded_image)
         self.image_label.setScaledContents(True)
-        print("Image displayed in GUI.")
+        print("RGB Image loaded and displayed in classification tab.")
 
 
     def save_image(self):
@@ -225,6 +227,10 @@ class MainWindow(QMainWindow):
 
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
+        
+        # Mode selection banner (you already implemented this)
+        file_path_label = QLabel("File path:")
+        self.file_input = QLineEdit("Path/to/actual/image")
 
         # Banner for file path and mode selection
         banner_layout = QVBoxLayout()
@@ -269,6 +275,7 @@ class MainWindow(QMainWindow):
 
         # Add the page to the stack
         self.stack.addWidget(page)
+
 
 
     def create_super_resolution_page(self):
@@ -364,22 +371,40 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(page)
 
     def run_classification(self):
+        """Load and classify the image, display in classification tab."""
         image_path = self.file_input_class.text()
         groundtruth_path = self.groundtruth_input.text()
-        
-        header_path = image_path.replace('.bil', '.hdr')  # Assuming the header is .hdr and image is .bil
-        
+
+        header_path = image_path.replace('.bil', '.hdr')
+
         # Load and classify the image
         self.classifier.load_image(image_path, header_path)
         result_image_path = self.classifier.classify(groundtruth_path)
 
-        # Display the classified result
+        # Load the classified image as QPixmap
         pixmap = QPixmap(result_image_path)
         self.image_label.setPixmap(pixmap)
+        self.image_label.setScaledContents(True)
+
+        # Store the loaded image in self.loaded_image for visualization tab
+        self.loaded_image = pixmap
+
+    def update_visualization_tab(self):
+        """Update the visualization tab with the loaded RGB image from the .bil file."""
+        if self.loaded_image:  # If an image was loaded
+            self.visualization_label.setPixmap(self.loaded_image)
+            self.visualization_label.setScaledContents(True)
+        else:
+            self.visualization_label.setText("No image loaded")
+
 
     def change_page(self, button_text):
+        """Switch between pages and update the visualization tab if necessary."""
         index = ["Visualization", "Super-resolution", "Calibration", "Classification"].index(button_text)
         self.stack.setCurrentIndex(index)
+
+        if button_text == "Visualization":
+            self.update_visualization_tab()  # Update the visualization tab with the loaded image
 
 
 if __name__ == "__main__":
