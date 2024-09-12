@@ -217,10 +217,59 @@ class MainWindow(QMainWindow):
     def create_visualization_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label = QLabel("Visualization Content", alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.image_label)
+
+        # Visualization image label (takes up most of the space)
+        self.visualization_label = QLabel("Visualization Content", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.visualization_label.setFixedHeight(400)  # Set an appropriate height or let it scale with content
+        layout.addWidget(self.visualization_label)
+
+        # Add a spacer to push the banner to the bottom
+        layout.addStretch(1)
+
+        # Banner for file path and mode selection
+        banner_layout = QVBoxLayout()
+
+        # File path input
+        file_layout = QHBoxLayout()
+        file_label = QLabel("File path:")
+        self.file_input_visualization = QLineEdit("Path/to/actual/image")
+        file_layout.addWidget(file_label)
+        file_layout.addWidget(self.file_input_visualization)
+        banner_layout.addLayout(file_layout)
+
+        # Visualization Mode Options
+        mode_group = QGroupBox("Mode:")
+        mode_layout = QHBoxLayout()
+
+        # Add radio buttons for each visualization mode
+        self.radio_rgb = QRadioButton("RGB")
+        self.radio_ndvi = QRadioButton("NDVI")
+        self.radio_evi = QRadioButton("EVI")
+        self.radio_mcari = QRadioButton("MCARI")
+        self.radio_mtvi = QRadioButton("MTVI")
+        self.radio_osavi = QRadioButton("OSAVI")
+        self.radio_pri = QRadioButton("PRI")
+        self.radio_hypercube = QRadioButton("Hypercube")
+
+        # Add radio buttons to layout
+        mode_layout.addWidget(self.radio_rgb)
+        mode_layout.addWidget(self.radio_ndvi)
+        mode_layout.addWidget(self.radio_evi)
+        mode_layout.addWidget(self.radio_mcari)
+        mode_layout.addWidget(self.radio_mtvi)
+        mode_layout.addWidget(self.radio_osavi)
+        mode_layout.addWidget(self.radio_pri)
+        mode_layout.addWidget(self.radio_hypercube)
+
+        mode_group.setLayout(mode_layout)
+        banner_layout.addWidget(mode_group)
+
+        # Add the banner layout at the bottom
+        layout.addLayout(banner_layout)
+
+        # Add the page to the stack
         self.stack.addWidget(page)
+
 
     def create_super_resolution_page(self):
         page = QWidget()
