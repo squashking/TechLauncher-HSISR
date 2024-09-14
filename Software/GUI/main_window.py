@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         self.loaded_image = None  # To store the loaded image for Vis Window
+        self.image_path = ""
         self.setWindowTitle("MainWindow")
         self.setGeometry(100, 100, 1024, 768)
 
@@ -139,8 +140,8 @@ class MainWindow(QMainWindow):
         if not image_path:
             print("No file selected or invalid file.")
             return
-
-        print(f"Selected image file: {image_path}")
+        self.image_path = image_path
+        print(f"Selected image file: {self.image_path}")
         
         # Get corresponding header file
         header_path = image_path.replace('.bil', '.hdr')
@@ -325,38 +326,39 @@ class MainWindow(QMainWindow):
         # Add the page to the stack
         self.stack.addWidget(page)
 
-
-
     def create_super_resolution_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
-        # File path input
+
+        # 文件路径输入
         file_layout = QHBoxLayout()
-        file_label = QLabel("File path:")
-        self.file_input = QLineEdit("Path/to/actual/image")
-        file_layout.addWidget(file_label)
-        file_layout.addWidget(self.file_input)
+        self.super_resolution_file_label = QLabel("File path: No image loaded")
+        file_layout.addWidget(self.super_resolution_file_label)
         layout.addLayout(file_layout)
-        
-        # Super resolution options
-        options_group = QGroupBox("Options")
-        options_layout = QVBoxLayout()
-        self.radio_super_res = QRadioButton("Super Resolution")
+
+        # 超分辨率选项
+        options_group = QGroupBox()
+        options_layout = QHBoxLayout()
+
+        self.radio_super_res = QPushButton("Super Resolution")
+        self.radio_super_res.setCheckable(True)
+        self.radio_super_res.setChecked(False)
         self.radio_low_res = QRadioButton("Low Res")
         self.radio_high_res = QRadioButton("High Res")
+
         options_layout.addWidget(self.radio_super_res)
         options_layout.addWidget(self.radio_low_res)
         options_layout.addWidget(self.radio_high_res)
+
         options_group.setLayout(options_layout)
         layout.addWidget(options_group)
-        
-        # Progress bar
+
+        # 进度条
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(24)
         layout.addWidget(self.progress_bar)
-        
+
         layout.addStretch(1)
         self.stack.addWidget(page)
 
@@ -446,6 +448,11 @@ class MainWindow(QMainWindow):
         else:
             self.visualization_label.setText("No image loaded")
 
+    def update_super_resolution_tab(self):
+        if self.loaded_image:  # If an image was loaded
+            self.super_resolution_file_label.setText(f"File path: {self.image_path} ")
+        else:
+            self.super_resolution_file_label.setText("File path: No image loaded")
 
     def change_page(self, button_text):
         """Switch between pages and update the visualization tab if necessary."""
@@ -454,6 +461,8 @@ class MainWindow(QMainWindow):
 
         if button_text == "Visualization":
             self.update_visualization_tab()  # Update the visualization tab with the loaded image
+        elif button_text == "Super-resolution":
+            self.update_super_resolution_tab()  # 更新超分辨率页面的文件路径
 
 
 if __name__ == "__main__":
