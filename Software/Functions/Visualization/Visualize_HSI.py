@@ -104,7 +104,8 @@ def show_rgb(hsi,save_path):
     plt.imshow(rgb_image)
     plt.axis('off')
     # plt.show()  # Commented out
-    plt.imsave(save_path, rgb_image)
+    if len(save_path) > 0:
+        plt.imsave(save_path, rgb_image)
 
 def load_image(image_path,headerPath):
     # check if it's PSI image format

@@ -6,7 +6,7 @@ import h5py
 import os
 
 
-def get_bicubic_mat(image_path, scale_factor):
+def get_bicubic_mat(image_path, save_path,scale_factor):
     """
     对高光谱图像进行双三次插值，并显示进度条，并保存wavelength信息。
 
@@ -29,6 +29,7 @@ def get_bicubic_mat(image_path, scale_factor):
     interpolated_images = []
     # 使用tqdm添加进度条
     for i in tqdm(range(image.shape[2]), desc="Interpolating"):
+    #for i in range(image.shape[2]):
         band = image[:, :, i]
         interpolated_band = zoom(band, scale_factor, order=3)  # 双三次插值
         interpolated_images.append(interpolated_band)
@@ -36,7 +37,7 @@ def get_bicubic_mat(image_path, scale_factor):
     interpolated_image = np.stack(interpolated_images, axis=2)
 
     # 将插值后的图像和wavelength信息保存为.mat文件
-    output_path = os.path.join("mid_matdata", 'mid_data.mat')
+    output_path = os.path.join(save_path, 'mid_data.mat')
     # 确保在保存时包含wavelength信息
     save_data = {'ms_bicubic': interpolated_image,'ms':image}
     if wavelengths is not None:
@@ -48,4 +49,4 @@ def get_bicubic_mat(image_path, scale_factor):
 if __name__ == "__main__":
     mat_image_path = 'ori/00001.mat'
     scale_factor = 2
-    interpolated_image = get_bicubic_mat(mat_image_path, scale_factor)
+    interpolated_image = get_bicubic_mat(mat_image_path,"mid_matdata", scale_factor)

@@ -1,11 +1,11 @@
 import os
 import time
 from scipy.io import savemat
-from Get_data import HSResultData
+from .Get_data import HSResultData
 from torch.utils.data import DataLoader
 from torchnet import meter
-from MSDformer import MSDformer
-from common import *
+from .MSDformer import MSDformer
+from .common import *
 
 fin_data_dir = './ori_matdata'
 result_path = './result_matdata'
@@ -13,7 +13,8 @@ result_path = './result_matdata'
 
 def get_fin_result(fin_data_dir,result_path):
     model_name = './weights/fin_msdformer.pth'
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"使用设备: {device}")
     start_time = time.time()
 
     for filename in os.listdir(fin_data_dir):

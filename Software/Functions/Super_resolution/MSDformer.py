@@ -1,4 +1,4 @@
-from common import *
+from .common import *
 from einops import rearrange
 from timm.models.layers import DropPath
 
