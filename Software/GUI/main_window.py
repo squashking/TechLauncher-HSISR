@@ -9,10 +9,34 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt
 from hyperspectral_classifier import HyperspectralClassifier 
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Functions.Visualization.Visualize_HSI import show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri, load_image
+
+class ClickableImage(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loaded_image = None
+        self.mode = "RGB"  # Default mode
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Trigger plot when the image is clicked
+            self.show_plot()
+
+    def show_plot(self):
+        # This function will trigger the plt.show()
+        if self.loaded_image is not None:
+            if self.mode == "RGB":
+                plt.imshow(self.loaded_image)
+                plt.title("RGB Image")
+            elif self.mode == "NDVI":
+                plt.imshow(self.ndvi_image)
+                plt.title("NDVI Image")
+            plt.show()
 
 def find_rgb_bands(wavelengths):
     R_wavelength = 682.5  # Red wavelength
@@ -43,8 +67,8 @@ class MainWindow(QMainWindow):
         # Main widget
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
-        
-        # Layouts
+
+        # Layouts (create these first!)
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -65,6 +89,13 @@ class MainWindow(QMainWindow):
         main_widget.setLayout(main_layout)
         main_layout.addWidget(left_frame)
         main_layout.addLayout(right_layout)
+
+        # Clickable image label (after defining main_layout)
+        self.image_label = ClickableImage(self)  # Using the custom ClickableImage class
+        right_layout.addWidget(self.image_label)  # Add it to right_layout instead of main_layout
+
+        # Mode selection and visualization controls
+        self.mode = "RGB"
         
         # Sidebar buttons
         sidebar_buttons = ["Visualization", "Super-resolution", "Calibration", "Classification"]
@@ -184,6 +215,7 @@ class MainWindow(QMainWindow):
         
         # Store the loaded RGB image for later use in both classification and visualization
         self.loaded_image = pixmap
+        self.image_label.loaded_image = img_rgb  # Store it in the ClickableImage class for plotting
 
         # Display the image in classification tab (if you're in the classification tab)
         self.image_label.setPixmap(self.loaded_image)
@@ -193,35 +225,17 @@ class MainWindow(QMainWindow):
         # Set the file path in the visualization input for further use
         self.file_input.setText(image_path)
 
-
     def save_image(self):
-        """Save the result image."""
-        file_dialog = QFileDialog()
-        save_path, _ = file_dialog.getSaveFileName(self, "Save Image", "", "PNG Image (*.png);;JPEG Image (*.jpg)")
-        if save_path:
-            result_image_path = "result/gtresults.png"  # Assuming the result image is saved with this name
-            pixmap = QPixmap(result_image_path)
-            pixmap.save(save_path)
-
-
-    def update_visualization(self, file_path):
-        """Update the visualization page with the loaded image."""
-        # Load the image
-        img_data = self.classifier.hsi.load()
-        if img_data is not None:
-            img_rgb = img_data[:, :, :3]  # Assuming 3 bands for RGB
-            img_rgb = (img_rgb * 255 / img_rgb.max()).astype(np.uint8)  # Scale image to 8-bit format
-            
-            # Convert the numpy image to QPixmap
-            height, width, channels = img_rgb.shape
-            bytes_per_line = channels * width
-            qimage = QImage(img_rgb.tobytes(), width, height, bytes_per_line, QImage.Format.Format_RGB888)
-            pixmap = QPixmap.fromImage(qimage)
-            
-            # Update the label in the visualization area
-            self.visualization_label.setPixmap(pixmap)
+        """Save the currently visualized image."""
+        if self.loaded_image is not None:
+            # Open a file dialog to choose the save location
+            file_dialog = QFileDialog()
+            save_path, _ = file_dialog.getSaveFileName(self, "Save Image", "", "PNG Image (*.png);;JPEG Image (*.jpg)")
+            if save_path:
+                self.loaded_image.save(save_path)  # Save the image
+                print(f"Image saved to {save_path}")
         else:
-            self.visualization_label.setText("Error: Unable to load the image")
+            print("No image to save.")
             
     def visualize_selected_mode(self):
         image_path = self.file_input.text()
@@ -230,53 +244,64 @@ class MainWindow(QMainWindow):
         print(f"Image Path: {image_path}")
         print(f"Header Path: {header_path}")
 
+        # Check if files exist
         if not os.path.exists(image_path):
-            print(f"Error: Image file not found at {image_path}")
-            self.visualization_label.setText("Error: Image file not found")
+            self.visualization_label.setText(f"Error: Image file not found at {image_path}")
             return
-
         if not os.path.exists(header_path):
-            print(f"Error: Header file not found at {header_path}")
-            self.visualization_label.setText("Error: Header file not found")
+            self.visualization_label.setText(f"Error: Header file not found at {header_path}")
             return
 
+        # Load image using the comprehensive Visualize_HSI load_image function
         try:
-            # Load image using the more comprehensive Visualize_HSI load_image function
             hsi = load_image(image_path, header_path)
+        except Exception as e:
+            self.visualization_label.setText(f"Error loading image: {str(e)}")
+            return
 
-            # Based on the selected mode, call the appropriate function
-            if self.radio_rgb.isChecked():
-                show_rgb(hsi, "visualization_rgb.png")
-                pixmap = QPixmap("visualization_rgb.png")
-            elif self.radio_ndvi.isChecked():
-                show_ndvi(hsi, "visualization_ndvi.png")
-                pixmap = QPixmap("visualization_ndvi.png")
-            elif self.radio_evi.isChecked():
-                show_evi(hsi, "visualization_evi.png")
-                pixmap = QPixmap("visualization_evi.png")
-            elif self.radio_mcari.isChecked():
-                show_mcari(hsi, "visualization_mcari.png")
-                pixmap = QPixmap("visualization_mcari.png")
-            elif self.radio_mtvi.isChecked():
-                show_mtvi(hsi, "visualization_mtvi.png")
-                pixmap = QPixmap("visualization_mtvi.png")
-            elif self.radio_osavi.isChecked():
-                show_osavi(hsi, "visualization_osavi.png")
-                pixmap = QPixmap("visualization_osavi.png")
-            elif self.radio_pri.isChecked():
-                show_pri(hsi, "visualization_pri.png")
-                pixmap = QPixmap("visualization_pri.png")
-            else:
-                self.visualization_label.setText("Error: No mode selected")
-                return
+        # Create a dictionary mapping modes to their corresponding functions and output file names
+        mode_mapping = {
+            "RGB": ("visualization_rgb.png", show_rgb),
+            "NDVI": ("visualization_ndvi.png", show_ndvi),
+            "EVI": ("visualization_evi.png", show_evi),
+            "MCARI": ("visualization_mcari.png", show_mcari),
+            "MTVI": ("visualization_mtvi.png", show_mtvi),
+            "OSAVI": ("visualization_osavi.png", show_osavi),
+            "PRI": ("visualization_pri.png", show_pri)
+        }
 
-            # Display the image in the visualization label
+        # Determine which radio button is checked and select the appropriate function and file name
+        selected_mode = None
+        if self.radio_rgb.isChecked():
+            selected_mode = "RGB"
+        elif self.radio_ndvi.isChecked():
+            selected_mode = "NDVI"
+        elif self.radio_evi.isChecked():
+            selected_mode = "EVI"
+        elif self.radio_mcari.isChecked():
+            selected_mode = "MCARI"
+        elif self.radio_mtvi.isChecked():
+            selected_mode = "MTVI"
+        elif self.radio_osavi.isChecked():
+            selected_mode = "OSAVI"
+        elif self.radio_pri.isChecked():
+            selected_mode = "PRI"
+        
+        if selected_mode is None:
+            self.visualization_label.setText("Error: No mode selected")
+            return
+
+        # Get the file path and function for the selected mode
+        save_path, visualization_function = mode_mapping[selected_mode]
+
+        # Call the corresponding visualization function
+        try:
+            visualization_function(hsi, save_path)
+            pixmap = QPixmap(save_path)
             self.visualization_label.setPixmap(pixmap)
             self.visualization_label.setScaledContents(True)
-
         except Exception as e:
-            self.visualization_label.setText(f"Error: {str(e)}")
-
+            self.visualization_label.setText(f"Error visualizing {selected_mode}: {str(e)}")
 
     def create_visualization_page(self):
         page = QWidget()
@@ -325,6 +350,7 @@ class MainWindow(QMainWindow):
 
         # Add the page to the stack
         self.stack.addWidget(page)
+
 
     def create_super_resolution_page(self):
         page = QWidget()

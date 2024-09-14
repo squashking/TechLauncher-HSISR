@@ -103,7 +103,7 @@ def show_rgb(hsi,save_path):
     print(f"RGB Image Shape: {rgb_image.shape}")
     plt.imshow(rgb_image)
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, rgb_image)
 
 def load_image(image_path,headerPath):
@@ -155,7 +155,7 @@ def show_ndvi(hsi, save_path):
     plt.colorbar(label='NDVI')
     plt.title("NDVI Image")
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, ndvi_image, cmap='RdYlGn')
 
 
@@ -217,7 +217,7 @@ def show_evi(hsi, save_path):
     plt.colorbar(label='EVI')
     plt.title("EVI Image")
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, evi_image, cmap='RdYlGn')
 
 
@@ -277,7 +277,7 @@ def show_mcari(hsi, save_path):
     plt.colorbar(label='MCARI')
     plt.title("MCARI Image")
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, mcari_image, cmap='viridis')
 
 
@@ -334,7 +334,7 @@ def show_mtvi(hsi, save_path):
     plt.colorbar(label='MTVI')
     plt.title("MTVI Image")
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, mtvi_image, cmap='viridis')
 
 
@@ -373,7 +373,7 @@ def show_osavi(hsi, save_path):
     plt.colorbar(label='OSAVI')
     plt.title("OSAVI Image")
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, osavi_image, cmap='RdYlGn')
 
 
@@ -431,7 +431,7 @@ def show_pri(hsi, save_path):
     plt.colorbar(label='PRI')
     plt.title("PRI Image")
     plt.axis('off')
-    plt.show()
+    # plt.show()  # Commented out
     plt.imsave(save_path, pri_image, cmap='Spectral')
 
 
@@ -443,18 +443,3 @@ def visualise_all(hsi, save_path_list):
     show_mtvi(hsi, save_path_list[4])
     show_osavi(hsi, save_path_list[5])
     show_pri(hsi, save_path_list[6])
-
-
-# def main():
-#     work_directory = str(input("Please enter your working directory: "))
-#     os.chdir(work_directory)
-#     header_path = str(input("Please enter your header path: "))
-#     bil_path = str(input("Please enter your bil path: "))
-#     hsi = load_image(bil_path, header_path)
-#     all_format = ['rgb', 'ndvi', 'evi', 'mcari', 'mtvi', 'osavi', 'pri']
-#     save_path_list = ["result_" + all_format[i] + ".png" for i in range(0, len(all_format))]
-#     visualise_all(hsi, save_path_list)
-
-
-# # start visualisation
-# main()
