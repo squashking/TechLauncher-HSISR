@@ -51,5 +51,5 @@ def visualize_hsi_rgb(image_path,tag_name,save_path,save_name):
 #image_path,tag_name,save_path,save_name = 'data/test_path_new/result/result_00013.mat','result','view',"result.png"
 #image_path,tag_name,save_path,save_name = 'get_result_data/result.mat','result','Result/SR result',"result.png"
 
-image_path,tag_name,save_path,save_name = 'mid_matdata/mid_data.mat','ms','view',"result_msd2.png"
+image_path,tag_name,save_path,save_name = 'result_matdata/result_mid_data.mat','result','view',"result_msd2.png"
 visualize_hsi_rgb(image_path,tag_name,save_path,save_name)
