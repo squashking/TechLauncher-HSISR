@@ -1,7 +1,5 @@
 import sys
-import numpy as np
 import os
-import spectral.io.envi as envi
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QStackedWidget, QRadioButton, QLabel, 
                              QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, 
@@ -13,7 +11,9 @@ import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Functions.Visualization.Visualize_HSI import show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri, load_image
+from Software.Functions.Basic_Functions.Load_HSI import load_hsi
+from Software.Functions.Visualization.Visualize_HSI import show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
+
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -38,16 +38,6 @@ class ClickableImage(QLabel):
                 plt.title("NDVI Image")
             plt.show()
 
-def find_rgb_bands(wavelengths):
-    R_wavelength = 682.5  # Red wavelength
-    G_wavelength = 532.5  # Green wavelength
-    B_wavelength = 472.5  # Blue wavelength
-    
-    r_band = min(range(len(wavelengths)), key=lambda i: abs(wavelengths[i] - R_wavelength))
-    g_band = min(range(len(wavelengths)), key=lambda i: abs(wavelengths[i] - G_wavelength))
-    b_band = min(range(len(wavelengths)), key=lambda i: abs(wavelengths[i] - B_wavelength))
-    
-    return r_band, g_band, b_band
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -167,62 +157,35 @@ class MainWindow(QMainWindow):
         # Open file dialog to select the hyperspectral image file
         print("Opening file dialog to select .bil file...")
         image_path, _ = QFileDialog.getOpenFileName(self, 'Open file', None, "Hyperspectral Images (*.bil *.bip *.bsq)")
-        
         if not image_path:
             print("No file selected or invalid file.")
             return
         self.image_path = image_path
         print(f"Selected image file: {self.image_path}")
-        
+
         # Get corresponding header file
         header_path = image_path.replace('.bil', '.hdr')
-        
         if not os.path.exists(header_path):
             print(f"Header file not found at: {header_path}")
             return
-
         print(f"Header file located at: {header_path}")
-        
         # Load hyperspectral image using spectral library
-        self.hsi = envi.open(header_path, image_path)
+        self.hsi = load_hsi(image_path,header_path)
         print(f"Hyperspectral image loaded successfully from {image_path}")
         
-        # Extract the wavelengths
-        wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
-        print(f"Extracted wavelengths: {wavelengths[:10]} ...")
-        
-        # Find RGB bands
-        r_band, g_band, b_band = find_rgb_bands(wavelengths)
-        print(f"RGB bands located at: R={r_band}, G={g_band}, B={b_band}")
-        
-        # Extract the RGB bands
-        img_r = self.hsi.read_band(r_band)
-        img_g = self.hsi.read_band(g_band)
-        img_b = self.hsi.read_band(b_band)
-        
-        # Stack into a single RGB image and normalize it
-        img_rgb = np.dstack((img_r, img_g, img_b))
-        img_rgb = (img_rgb - np.min(img_rgb)) / (np.max(img_rgb) - np.min(img_rgb))  # Normalize to [0, 1]
-        img_rgb = (img_rgb * 255).astype(np.uint8)  # Scale to 8-bit [0, 255]
-        
-        print(f"Image stacked and normalized: shape={img_rgb.shape}")
-        
         # Convert to QImage and store the result in self.loaded_image for both visualization and classification
-        height, width, _ = img_rgb.shape
-        bytes_per_line = 3 * width
-        qimage = QImage(img_rgb.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
-        pixmap = QPixmap(qimage)
+        height, width, _ = self.hsi.shape
+        empty_image = QImage(width, height, QImage.Format.Format_RGB888)  # 交换 width 和 height 的位置
+        empty_image.fill(Qt.GlobalColor.white)  # 填充白色
+        pixmap = QPixmap.fromImage(empty_image)
         
-        # Store the loaded RGB image for later use in both classification and visualization
+        # # Store the loaded RGB image for later use in both classification and visualization
         self.loaded_image = pixmap
-        self.image_label.loaded_image = img_rgb  # Store it in the ClickableImage class for plotting
+        self.image_label.loaded_image = empty_image  # Store it in the ClickableImage class for plotting
 
-        # Display the image in classification tab (if you're in the classification tab)
         self.image_label.setPixmap(self.loaded_image)
         self.image_label.setScaledContents(True)
-        print("RGB Image loaded and displayed in classification tab.")
-        
-        # Set the file path in the visualization input for further use
+        # 在可视化输入中设置文件路径以供进一步使用
         self.file_input.setText(image_path)
 
     def save_image(self):
@@ -238,36 +201,16 @@ class MainWindow(QMainWindow):
             print("No image to save.")
             
     def visualize_selected_mode(self):
-        image_path = self.file_input.text()
-        header_path = image_path.replace(".bil", ".hdr")
-
-        print(f"Image Path: {image_path}")
-        print(f"Header Path: {header_path}")
-
-        # Check if files exist
-        if not os.path.exists(image_path):
-            self.visualization_label.setText(f"Error: Image file not found at {image_path}")
-            return
-        if not os.path.exists(header_path):
-            self.visualization_label.setText(f"Error: Header file not found at {header_path}")
-            return
-
-        # Load image using the comprehensive Visualize_HSI load_image function
-        try:
-            hsi = load_image(image_path, header_path)
-        except Exception as e:
-            self.visualization_label.setText(f"Error loading image: {str(e)}")
-            return
 
         # Create a dictionary mapping modes to their corresponding functions and output file names
         mode_mapping = {
-            "RGB": ("visualization_rgb.png", show_rgb),
-            "NDVI": ("visualization_ndvi.png", show_ndvi),
-            "EVI": ("visualization_evi.png", show_evi),
-            "MCARI": ("visualization_mcari.png", show_mcari),
-            "MTVI": ("visualization_mtvi.png", show_mtvi),
-            "OSAVI": ("visualization_osavi.png", show_osavi),
-            "PRI": ("visualization_pri.png", show_pri)
+            "RGB": ("img/visualization_rgb.png", show_rgb),
+            "NDVI": ("img/visualization_ndvi.png", show_ndvi),
+            "EVI": ("img/visualization_evi.png", show_evi),
+            "MCARI": ("img/visualization_mcari.png", show_mcari),
+            "MTVI": ("img/visualization_mtvi.png", show_mtvi),
+            "OSAVI": ("img/visualization_osavi.png", show_osavi),
+            "PRI": ("img/visualization_pri.png", show_pri)
         }
 
         # Determine which radio button is checked and select the appropriate function and file name
@@ -296,7 +239,7 @@ class MainWindow(QMainWindow):
 
         # Call the corresponding visualization function
         try:
-            visualization_function(hsi, save_path)
+            visualization_function(self.hsi, save_path)
             pixmap = QPixmap(save_path)
             self.visualization_label.setPixmap(pixmap)
             self.visualization_label.setScaledContents(True)
@@ -309,7 +252,8 @@ class MainWindow(QMainWindow):
 
         # Visualization image label (takes up most of the space)
         self.visualization_label = QLabel("Visualization Content", alignment=Qt.AlignmentFlag.AlignCenter)
-        self.visualization_label.setFixedHeight(400)  # Set an appropriate height or let it scale with content
+        self.visualization_label.setFixedHeight(525)  # Set an appropriate height or let it scale with content
+        self.visualization_label.setFixedWidth(700)
         layout.addWidget(self.visualization_label)
 
         # Add a spacer to push the banner to the bottom
