@@ -8,12 +8,15 @@ from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt
 from hyperspectral_classifier import HyperspectralClassifier 
 import matplotlib.pyplot as plt
+import shutil
+import time
+import threading
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Software.Functions.Basic_Functions.Load_HSI import load_hsi
 from Software.Functions.Visualization.Visualize_HSI import show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
-
+from Software.Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -295,11 +298,69 @@ class MainWindow(QMainWindow):
         # Add the page to the stack
         self.stack.addWidget(page)
 
+    def show_resolution_image(self, resolution):
+        if resolution == "low":
+            if self.hsi is not None:
+                print(f"显示{resolution}分辨率图像")
+                save_path = f"img/visualization_{resolution}_res.png"
+                try:
+                    show_rgb(self.hsi, save_path)
+                    pixmap = QPixmap(save_path)
+                    self.visualization_label_sr.setPixmap(pixmap)
+                    self.visualization_label_sr.setScaledContents(True)
+                except Exception as e:
+                    self.visualization_label_sr.setText(f"显示{resolution}分辨率图像时出错：{str(e)}")
+            else:
+                self.visualization_label_sr.setText("请先加载图像")
+        if resolution == "high":
+            pass
+
+    def handle_super_resolution(self):
+        if self.radio_super_res.isChecked():
+            print("开始超分辨率处理")
+            desired_path = os.path.dirname(self.image_path) + os.path.sep
+            temp_folders = ['temp_sr/ori_matdata/', 'temp_sr/mid_matdata/', 'temp_sr/result_matdata/',
+                            'temp_sr/result_hsidata/']
+            for folder in temp_folders:
+                full_path = os.path.join(os.getcwd(), folder)
+                if os.path.exists(full_path):
+                    shutil.rmtree(full_path)
+                os.makedirs(full_path)
+
+            self.progress_bar.setValue(0)
+            self.current_progress = 0
+            self.target_progress = 0
+
+            def update_progress():
+                while self.current_progress < self.target_progress:
+                    self.current_progress += 0.05  # 每次增加0.5%
+                    self.progress_bar.setValue(int(self.current_progress))
+                    time.sleep(0.05)
+
+            def progress_callback(message):
+                print(f"进度更新: {message}")
+                if message == "完成":
+                    self.target_progress = 100
+                else:
+                    self.target_progress = min(self.target_progress + 25, 99)
+                    threading.Thread(target=update_progress, daemon=True).start()
+                QApplication.processEvents()
+
+            run_super_resolution(desired_path, temp_folders[0], temp_folders[1], temp_folders[2], temp_folders[3],
+                                 callback=progress_callback)
+        else:
+            print("取消超分辨率处理")
 
     def create_super_resolution_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        self.visualization_label_sr = QLabel("Visualization Content")
+        self.visualization_label_sr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.visualization_label_sr.setFixedHeight(525)  # Set an appropriate height or let it scale with content
+        self.visualization_label_sr.setFixedWidth(700)
+        layout.addWidget(self.visualization_label_sr)
 
         # 文件路径输入
         file_layout = QHBoxLayout()
@@ -316,6 +377,9 @@ class MainWindow(QMainWindow):
         self.radio_super_res.setChecked(False)
         self.radio_low_res = QRadioButton("Low Res")
         self.radio_high_res = QRadioButton("High Res")
+        self.radio_super_res.clicked.connect(self.handle_super_resolution)
+        self.radio_low_res.clicked.connect(lambda: self.show_resolution_image("low"))
+        self.radio_high_res.clicked.connect(lambda: self.show_resolution_image("high"))
 
         options_layout.addWidget(self.radio_super_res)
         options_layout.addWidget(self.radio_low_res)
@@ -323,10 +387,9 @@ class MainWindow(QMainWindow):
 
         options_group.setLayout(options_layout)
         layout.addWidget(options_group)
-
         # 进度条
         self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(24)
+        self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
         layout.addStretch(1)
