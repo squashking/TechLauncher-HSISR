@@ -445,16 +445,16 @@ def visualise_all(hsi, save_path_list):
     show_pri(hsi, save_path_list[6])
 
 
-def main():
-    work_directory = str(input("Please enter your working directory: "))
-    os.chdir(work_directory)
-    header_path = str(input("Please enter your header path: "))
-    bil_path = str(input("Please enter your bil path: "))
-    hsi = load_image(bil_path, header_path)
-    all_format = ['rgb', 'ndvi', 'evi', 'mcari', 'mtvi', 'osavi', 'pri']
-    save_path_list = ["result_" + all_format[i] + ".png" for i in range(0, len(all_format))]
-    visualise_all(hsi, save_path_list)
+# def main():
+#     work_directory = str(input("Please enter your working directory: "))
+#     os.chdir(work_directory)
+#     header_path = str(input("Please enter your header path: "))
+#     bil_path = str(input("Please enter your bil path: "))
+#     hsi = load_image(bil_path, header_path)
+#     all_format = ['rgb', 'ndvi', 'evi', 'mcari', 'mtvi', 'osavi', 'pri']
+#     save_path_list = ["result_" + all_format[i] + ".png" for i in range(0, len(all_format))]
+#     visualise_all(hsi, save_path_list)
 
 
-# start visualisation
-main()
+# # start visualisation
+# main()

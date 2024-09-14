@@ -10,6 +10,10 @@ from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt
 from hyperspectral_classifier import HyperspectralClassifier 
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from Functions.Visualization.Visualize_HSI import show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri, load_image
+
 def find_rgb_bands(wavelengths):
     R_wavelength = 682.5  # Red wavelength
     G_wavelength = 532.5  # Green wavelength
@@ -184,6 +188,9 @@ class MainWindow(QMainWindow):
         self.image_label.setPixmap(self.loaded_image)
         self.image_label.setScaledContents(True)
         print("RGB Image loaded and displayed in classification tab.")
+        
+        # Set the file path in the visualization input for further use
+        self.file_input.setText(image_path)
 
 
     def save_image(self):
@@ -214,6 +221,60 @@ class MainWindow(QMainWindow):
             self.visualization_label.setPixmap(pixmap)
         else:
             self.visualization_label.setText("Error: Unable to load the image")
+            
+    def visualize_selected_mode(self):
+        image_path = self.file_input.text()
+        header_path = image_path.replace(".bil", ".hdr")
+
+        print(f"Image Path: {image_path}")
+        print(f"Header Path: {header_path}")
+
+        if not os.path.exists(image_path):
+            print(f"Error: Image file not found at {image_path}")
+            self.visualization_label.setText("Error: Image file not found")
+            return
+
+        if not os.path.exists(header_path):
+            print(f"Error: Header file not found at {header_path}")
+            self.visualization_label.setText("Error: Header file not found")
+            return
+
+        try:
+            # Load image using the more comprehensive Visualize_HSI load_image function
+            hsi = load_image(image_path, header_path)
+
+            # Based on the selected mode, call the appropriate function
+            if self.radio_rgb.isChecked():
+                show_rgb(hsi, "visualization_rgb.png")
+                pixmap = QPixmap("visualization_rgb.png")
+            elif self.radio_ndvi.isChecked():
+                show_ndvi(hsi, "visualization_ndvi.png")
+                pixmap = QPixmap("visualization_ndvi.png")
+            elif self.radio_evi.isChecked():
+                show_evi(hsi, "visualization_evi.png")
+                pixmap = QPixmap("visualization_evi.png")
+            elif self.radio_mcari.isChecked():
+                show_mcari(hsi, "visualization_mcari.png")
+                pixmap = QPixmap("visualization_mcari.png")
+            elif self.radio_mtvi.isChecked():
+                show_mtvi(hsi, "visualization_mtvi.png")
+                pixmap = QPixmap("visualization_mtvi.png")
+            elif self.radio_osavi.isChecked():
+                show_osavi(hsi, "visualization_osavi.png")
+                pixmap = QPixmap("visualization_osavi.png")
+            elif self.radio_pri.isChecked():
+                show_pri(hsi, "visualization_pri.png")
+                pixmap = QPixmap("visualization_pri.png")
+            else:
+                self.visualization_label.setText("Error: No mode selected")
+                return
+
+            # Display the image in the visualization label
+            self.visualization_label.setPixmap(pixmap)
+            self.visualization_label.setScaledContents(True)
+
+        except Exception as e:
+            self.visualization_label.setText(f"Error: {str(e)}")
 
 
     def create_visualization_page(self):
@@ -228,20 +289,9 @@ class MainWindow(QMainWindow):
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
         
-        # Mode selection banner (you already implemented this)
+        # Mode selection banner
         file_path_label = QLabel("File path:")
         self.file_input = QLineEdit("Path/to/actual/image")
-
-        # Banner for file path and mode selection
-        banner_layout = QVBoxLayout()
-
-        # File path input
-        file_layout = QHBoxLayout()
-        file_label = QLabel("File path:")
-        self.file_input_visualization = QLineEdit("Path/to/actual/image")
-        file_layout.addWidget(file_label)
-        file_layout.addWidget(self.file_input_visualization)
-        banner_layout.addLayout(file_layout)
 
         # Visualization Mode Options
         mode_group = QGroupBox("Mode:")
@@ -255,9 +305,7 @@ class MainWindow(QMainWindow):
         self.radio_mtvi = QRadioButton("MTVI")
         self.radio_osavi = QRadioButton("OSAVI")
         self.radio_pri = QRadioButton("PRI")
-        self.radio_hypercube = QRadioButton("Hypercube")
 
-        # Add radio buttons to layout
         mode_layout.addWidget(self.radio_rgb)
         mode_layout.addWidget(self.radio_ndvi)
         mode_layout.addWidget(self.radio_evi)
@@ -265,13 +313,14 @@ class MainWindow(QMainWindow):
         mode_layout.addWidget(self.radio_mtvi)
         mode_layout.addWidget(self.radio_osavi)
         mode_layout.addWidget(self.radio_pri)
-        mode_layout.addWidget(self.radio_hypercube)
 
         mode_group.setLayout(mode_layout)
-        banner_layout.addWidget(mode_group)
+        layout.addWidget(mode_group)
 
-        # Add the banner layout at the bottom
-        layout.addLayout(banner_layout)
+        # Button to trigger visualization
+        visualize_button = QPushButton("Visualize")
+        visualize_button.clicked.connect(self.visualize_selected_mode)
+        layout.addWidget(visualize_button)
 
         # Add the page to the stack
         self.stack.addWidget(page)
