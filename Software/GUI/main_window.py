@@ -21,6 +21,7 @@ from Functions.Basic_Functions.Load_HSI import load_hsi
 from Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
 from Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
 from Functions.Calibration.calibrate import calibration
+from Functions.Hypercube_Spectrum.Hypercube import show_cube
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -218,7 +219,7 @@ class MainWindow(QMainWindow):
             "MTVI": ("img/visualization_mtvi.png", show_mtvi),
             "OSAVI": ("img/visualization_osavi.png", show_osavi),
             "PRI": ("img/visualization_pri.png", show_pri),
-            "hypercube": ("img/visualization_pri.png", show_pri)
+            "hypercube": ("img/visualization_cube.png", show_cube)
         }
 
         # Determine which radio button is checked and select the appropriate function and file name

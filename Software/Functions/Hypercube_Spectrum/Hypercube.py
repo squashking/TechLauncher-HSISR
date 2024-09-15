@@ -113,13 +113,13 @@ def normalize_data(data):
     """将数据归一化到0-1范围"""
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
-def view_cube(data, bands=None):
+def show_cube(data, save_path):
     # 确保数据是三维的
     if len(data.shape) != 3:
         raise ValueError("数据必须是三维的")
     print("原始数据形状:", data.shape)
     # 提取指定波段的数据
-
+    bands = list(find_RGB_bands([float(i) for i in data.metadata['wavelength']]))
     r_band, g_band, b_band = bands[0],bands[1],bands[2]
     # 分别提取R, G, B波段
     r_image = data[:, :, r_band]
@@ -174,8 +174,12 @@ def view_cube(data, bands=None):
     # 设置视角
     ax.view_init(elev=30, azim=45)
 
-    plt.title('Hypercube Visualization')
-    plt.show()
+    if len(save_path) > 0:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    else:
+        plt.show()
+
+    plt.close(fig)
 
 
 # 使用示例
@@ -185,5 +189,4 @@ if __name__ == "__main__":
     save_path = "Result.jpg"
     hsi = load_image(bil_path, header_path)
     # show_rgb(hsi, save_path)
-    list_rgb_bands = list(find_RGB_bands([float(i) for i in hsi.metadata['wavelength']]))
-    view_cube(hsi,list_rgb_bands)
+    show_cube(hsi,save_path)
