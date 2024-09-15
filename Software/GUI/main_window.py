@@ -1,6 +1,6 @@
 import sys
 import os
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QPushButton, QStackedWidget, QRadioButton, QLabel, 
                              QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, 
                              QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar)
@@ -187,14 +187,8 @@ class MainWindow(QMainWindow):
         empty_image.fill(Qt.GlobalColor.white)  # 填充白色
         pixmap = QPixmap.fromImage(empty_image)
         
-        # # Store the loaded RGB image for later use in both classification and visualization
+        # # # Store the loaded RGB image for later use in both classification and visualization
         self.loaded_image = pixmap
-        self.image_label.loaded_image = empty_image  # Store it in the ClickableImage class for plotting
-
-        self.image_label.setPixmap(self.loaded_image)
-        self.image_label.setScaledContents(True)
-        # 在可视化输入中设置文件路径以供进一步使用
-        self.file_input.setText(image_path)
 
     def save_image(self):
         """Save the currently visualized image."""
@@ -209,7 +203,6 @@ class MainWindow(QMainWindow):
             print("No image to save.")
             
     def visualize_selected_mode(self):
-
         # Create a dictionary mapping modes to their corresponding functions and output file names
         mode_mapping = {
             "RGB": ("img/visualization_rgb.png", show_rgb),
@@ -360,7 +353,7 @@ class MainWindow(QMainWindow):
 
             def update_progress(speed=0.05):
                 while self.current_progress < self.target_progress:
-                    self.current_progress += 0.05  # 每次增加0.5%
+                    self.current_progress += speed  # 每次增加0.5%
                     self.progress_bar.setValue(int(self.current_progress))
                     time.sleep(0.05)
 
@@ -463,7 +456,6 @@ class MainWindow(QMainWindow):
             print(f"Error during calibration: {str(e)}")
             self.calibration_image_label.setText(f"Error: {str(e)}")
 
-
     def create_calibration_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -542,59 +534,89 @@ class MainWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
-        # File path input
-        file_layout = QHBoxLayout()
-        file_label = QLabel("File path:")
-        self.file_input_class = QLineEdit("One_sample/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.bil")
-        file_layout.addWidget(file_label)
-        file_layout.addWidget(self.file_input_class)
-        layout.addLayout(file_layout)
-        
-        # Groundtruth input
+
+        self.visualization_label_class = QLabel("Visualization Content")
+        self.visualization_label_class.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.visualization_label_class.setFixedHeight(525)  # 设置适当的高度或让它随内容缩放
+        self.visualization_label_class.setFixedWidth(700)
+        layout.addWidget(self.visualization_label_class)
+
+        # 将文件路径标签移到这里
+        self.classification_inputfile_label = QLabel("File path: No image loaded")
+        layout.addWidget(self.classification_inputfile_label)
+
+        self.tab_widget = QTabWidget()
+        unsupervised_tab = QWidget()
+        supervised_tab = QWidget()
+
+        self.tab_widget.addTab(unsupervised_tab, "Unsupervised")
+        self.tab_widget.addTab(supervised_tab, "Supervised")
+
+        # 无监督标签页的内容
+        unsupervised_layout = QVBoxLayout(unsupervised_tab)
+        num_classes_layout = QHBoxLayout()
+        num_classes_label = QLabel("Num of Classes:")
+        self.num_classes_input = QLineEdit()
+        num_classes_layout.addWidget(num_classes_label)
+        num_classes_layout.addWidget(self.num_classes_input)
+        unsupervised_layout.addLayout(num_classes_layout)
+
+        max_iterations_layout = QHBoxLayout()
+        max_iterations_label = QLabel("Max Iterations:")
+        self.max_iterations_input = QLineEdit()
+        max_iterations_layout.addWidget(max_iterations_label)
+        max_iterations_layout.addWidget(self.max_iterations_input)
+        unsupervised_layout.addLayout(max_iterations_layout)
+
+        unsupervised_classify_button = QPushButton("Classify")
+        unsupervised_classify_button.setFixedWidth(100)
+        unsupervised_classify_button.clicked.connect(self.run_unsupervised_classification)
+        unsupervised_layout.addWidget(unsupervised_classify_button)
+
+        # 有监督标签页的内容
+        supervised_layout = QVBoxLayout(supervised_tab)
+
         groundtruth_layout = QHBoxLayout()
         groundtruth_label = QLabel("Groundtruth:")
         self.groundtruth_input = QLineEdit("One_sample/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1_mask.jpg")
         groundtruth_layout.addWidget(groundtruth_label)
         groundtruth_layout.addWidget(self.groundtruth_input)
-        layout.addLayout(groundtruth_layout)
-        
-        # Classifier selection
+        supervised_layout.addLayout(groundtruth_layout)
+
         classifier_layout = QHBoxLayout()
         classifier_label = QLabel("Classifier:")
         self.classifier_combo = QComboBox()
         self.classifier_combo.addItem("GaussianClassifier")
         classifier_layout.addWidget(classifier_label)
         classifier_layout.addWidget(self.classifier_combo)
-        layout.addLayout(classifier_layout)
-        
-        # Classify button
-        classify_button = QPushButton("Classify")
-        classify_button.clicked.connect(self.run_classification)
-        layout.addWidget(classify_button)
+        classifier_layout.addStretch()
+        supervised_layout.addLayout(classifier_layout)
 
-        # Label to display classified image
-        self.image_label = QLabel()
-        layout.addWidget(self.image_label)
-        
+        supervised_classify_button = QPushButton("Classify")
+        supervised_classify_button.setFixedWidth(100)
+        supervised_classify_button.clicked.connect(self.run_supervised_classification)
+        supervised_layout.addWidget(supervised_classify_button)
+
+        layout.addWidget(self.tab_widget)
+
         layout.addStretch(1)
         self.stack.addWidget(page)
 
-    def run_classification(self):
+    def run_unsupervised_classification(self):
+        pass
+
+    def run_supervised_classification(self):
         """Load and classify the image, display in classification tab."""
-        image_path = self.file_input_class.text()
         groundtruth_path = self.groundtruth_input.text()
-
-        header_path = image_path.replace('.bil', '.hdr')
-
+        header_path = self.image_path.replace('.bil', '.hdr')
         # Load and classify the image
-        self.classifier.load_image(image_path, header_path)
+        self.classifier.load_image(self.image_path, header_path)
         result_image_path = self.classifier.classify(groundtruth_path)
 
         # Load the classified image as QPixmap
         pixmap = QPixmap(result_image_path)
-        self.image_label.setPixmap(pixmap)
-        self.image_label.setScaledContents(True)
+        self.visualization_label_class.setPixmap(pixmap)
+        self.visualization_label_class.setScaledContents(True)
 
         # Store the loaded image in self.loaded_image for visualization tab
         self.loaded_image = pixmap
@@ -613,6 +635,12 @@ class MainWindow(QMainWindow):
         else:
             self.super_resolution_file_label.setText("File path: No image loaded")
 
+    def update_classification_tab(self):
+        if self.loaded_image:  # If an image was loaded
+            self.classification_inputfile_label.setText(f"File path: {self.image_path} ")
+        else:
+            self.classification_inputfile_label.setText("File path: No image loaded")
+
     def change_page(self, button_text):
         """Switch between pages and update the visualization tab if necessary."""
         index = ["Visualization", "Super-resolution", "Calibration", "Classification"].index(button_text)
@@ -622,6 +650,8 @@ class MainWindow(QMainWindow):
             self.update_visualization_tab()  # Update the visualization tab with the loaded image
         elif button_text == "Super-resolution":
             self.update_super_resolution_tab()  # 更新超分辨率页面的文件路径
+        elif button_text == "Classification":
+            self.update_classification_tab()
 
 
 if __name__ == "__main__":
