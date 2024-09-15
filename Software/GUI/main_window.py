@@ -217,7 +217,8 @@ class MainWindow(QMainWindow):
             "MCARI": ("img/visualization_mcari.png", show_mcari),
             "MTVI": ("img/visualization_mtvi.png", show_mtvi),
             "OSAVI": ("img/visualization_osavi.png", show_osavi),
-            "PRI": ("img/visualization_pri.png", show_pri)
+            "PRI": ("img/visualization_pri.png", show_pri),
+            "hypercube": ("img/visualization_pri.png", show_pri)
         }
 
         # Determine which radio button is checked and select the appropriate function and file name
@@ -236,6 +237,8 @@ class MainWindow(QMainWindow):
             selected_mode = "OSAVI"
         elif self.radio_pri.isChecked():
             selected_mode = "PRI"
+        elif self.radio_cube.isChecked():
+            selected_mode = "hypercube"
         
         if selected_mode is None:
             self.visualization_label.setText("Error: No mode selected")
@@ -272,7 +275,8 @@ class MainWindow(QMainWindow):
 
         # Visualization Mode Options
         mode_group = QGroupBox("Mode:")
-        mode_layout = QHBoxLayout()
+        mode_layout_top = QHBoxLayout()
+        mode_layout_bottom = QHBoxLayout()
 
         # Add radio buttons for each visualization mode
         self.radio_rgb = QRadioButton("RGB")
@@ -282,16 +286,22 @@ class MainWindow(QMainWindow):
         self.radio_mtvi = QRadioButton("MTVI")
         self.radio_osavi = QRadioButton("OSAVI")
         self.radio_pri = QRadioButton("PRI")
+        self.radio_cube = QRadioButton("HyperCube")
 
-        mode_layout.addWidget(self.radio_rgb)
-        mode_layout.addWidget(self.radio_ndvi)
-        mode_layout.addWidget(self.radio_evi)
-        mode_layout.addWidget(self.radio_mcari)
-        mode_layout.addWidget(self.radio_mtvi)
-        mode_layout.addWidget(self.radio_osavi)
-        mode_layout.addWidget(self.radio_pri)
+        mode_layout_top.addWidget(self.radio_rgb)
+        mode_layout_top.addWidget(self.radio_ndvi)
+        mode_layout_top.addWidget(self.radio_evi)
+        mode_layout_top.addWidget(self.radio_mcari)
+        mode_layout_bottom.addWidget(self.radio_mtvi)
+        mode_layout_bottom.addWidget(self.radio_osavi)
+        mode_layout_bottom.addWidget(self.radio_pri)
+        mode_layout_bottom.addWidget(self.radio_cube)
 
-        mode_group.setLayout(mode_layout)
+        mode_layout_vertical = QVBoxLayout()
+        mode_layout_vertical.addLayout(mode_layout_top)
+        mode_layout_vertical.addLayout(mode_layout_bottom)
+        mode_group.setLayout(mode_layout_vertical)
+
         layout.addWidget(mode_group)
 
         # Button to trigger visualization
