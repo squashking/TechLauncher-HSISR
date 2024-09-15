@@ -313,7 +313,19 @@ class MainWindow(QMainWindow):
             else:
                 self.visualization_label_sr.setText("请先加载图像")
         if resolution == "high":
-            pass
+            image_path = 'temp_sr/result_hsidata/result.bil'
+            header_path = 'temp_sr/result_hsidata/result.hdr'
+            high_hsi = load_hsi(image_path,header_path)
+            if high_hsi is not None:
+                print(f"显示{resolution}分辨率图像")
+                save_path = f"img/visualization_{resolution}_res.png"
+                try:
+                    show_rgb(high_hsi, save_path)
+                    pixmap = QPixmap(save_path)
+                    self.visualization_label_sr.setPixmap(pixmap)
+                    self.visualization_label_sr.setScaledContents(True)
+                except Exception as e:
+                    self.visualization_label_sr.setText(f"显示{resolution}分辨率图像时出错：{str(e)}")
 
     def handle_super_resolution(self):
         if self.radio_super_res.isChecked():
@@ -331,7 +343,7 @@ class MainWindow(QMainWindow):
             self.current_progress = 0
             self.target_progress = 0
 
-            def update_progress():
+            def update_progress(speed=0.05):
                 while self.current_progress < self.target_progress:
                     self.current_progress += 0.05  # 每次增加0.5%
                     self.progress_bar.setValue(int(self.current_progress))
@@ -341,6 +353,7 @@ class MainWindow(QMainWindow):
                 print(f"进度更新: {message}")
                 if message == "完成":
                     self.target_progress = 100
+                    threading.Thread(target=update_progress, args=(1,), daemon=True).start()
                 else:
                     self.target_progress = min(self.target_progress + 25, 99)
                     threading.Thread(target=update_progress, daemon=True).start()

@@ -1,0 +1,9 @@
+PyQt6
+spectral
+matplotlib
+scipy
+h5py
+torch
+torchnet
+einops
+timm
