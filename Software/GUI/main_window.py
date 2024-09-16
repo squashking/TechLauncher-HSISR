@@ -1,11 +1,11 @@
 import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget,
-                             QPushButton, QStackedWidget, QRadioButton, QLabel, 
-                             QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, 
-                             QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar)
+                             QPushButton, QStackedWidget, QRadioButton, QLabel,
+                             QLineEdit, QHBoxLayout, QProgressBar, QGroupBox,
+                             QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from hyperspectral_classifier import HyperspectralClassifier 
 import matplotlib.pyplot as plt
 import shutil
@@ -17,11 +17,14 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Functions.Basic_Functions.Load_HSI import load_hsi
-from Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
-from Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
-from Functions.Calibration.calibrate import calibration
-from Functions.Hypercube_Spectrum.Hypercube import show_cube
+from Software.Functions.Basic_Functions.Load_HSI import load_hsi
+from Software.Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
+from Software.Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
+from Software.Functions.Calibration.calibrate import calibration
+from Software.Functions.Hypercube_Spectrum.Hypercube import show_cube
+from unsupervised_worker import UnsupervisedClassificationWorker
+from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -537,11 +540,10 @@ class MainWindow(QMainWindow):
 
         self.visualization_label_class = QLabel("Visualization Content")
         self.visualization_label_class.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.visualization_label_class.setFixedHeight(525)  # 设置适当的高度或让它随内容缩放
+        self.visualization_label_class.setFixedHeight(525)
         self.visualization_label_class.setFixedWidth(700)
         layout.addWidget(self.visualization_label_class)
 
-        # 将文件路径标签移到这里
         self.classification_inputfile_label = QLabel("File path: No image loaded")
         layout.addWidget(self.classification_inputfile_label)
 
@@ -554,16 +556,21 @@ class MainWindow(QMainWindow):
 
         # 无监督标签页的内容
         unsupervised_layout = QVBoxLayout(unsupervised_tab)
+
         num_classes_layout = QHBoxLayout()
         num_classes_label = QLabel("Num of Classes:")
-        self.num_classes_input = QLineEdit()
+        self.num_classes_input = QSpinBox()
+        self.num_classes_input.setMinimum(1)
+        self.num_classes_input.setValue(5)
         num_classes_layout.addWidget(num_classes_label)
         num_classes_layout.addWidget(self.num_classes_input)
         unsupervised_layout.addLayout(num_classes_layout)
 
         max_iterations_layout = QHBoxLayout()
         max_iterations_label = QLabel("Max Iterations:")
-        self.max_iterations_input = QLineEdit()
+        self.max_iterations_input = QSpinBox()
+        self.max_iterations_input.setMinimum(1)
+        self.max_iterations_input.setValue(10)
         max_iterations_layout.addWidget(max_iterations_label)
         max_iterations_layout.addWidget(self.max_iterations_input)
         unsupervised_layout.addLayout(max_iterations_layout)
@@ -572,6 +579,12 @@ class MainWindow(QMainWindow):
         unsupervised_classify_button.setFixedWidth(100)
         unsupervised_classify_button.clicked.connect(self.run_unsupervised_classification)
         unsupervised_layout.addWidget(unsupervised_classify_button)
+
+        # **在这里创建进度条，并赋值给 self.unsupervised_progress_bar**
+        self.unsupervised_progress_bar = QProgressBar()
+        self.unsupervised_progress_bar.setValue(0)
+        unsupervised_layout.addWidget(self.unsupervised_progress_bar)
+
 
         # 有监督标签页的内容
         supervised_layout = QVBoxLayout(supervised_tab)
@@ -602,8 +615,64 @@ class MainWindow(QMainWindow):
         layout.addStretch(1)
         self.stack.addWidget(page)
 
+
+    def unsupervised_classification_finished(self, pixmap):
+        # 更新显示区域，显示分类结果
+        self.visualization_label_class.setPixmap(pixmap)
+        self.visualization_label_class.setScaledContents(True)
+
+        # 将进度条设置为确定状态并更新为 100%
+        self.unsupervised_progress_bar.setRange(0, 100)
+        self.unsupervised_progress_bar.setValue(100)
+
+
+    def unsupervised_classification_error(self, error_message):
+        self.visualization_label_class.setText(f"Error: {error_message}")
+        # 将进度条设置为确定状态并重置为 0%
+        self.unsupervised_progress_bar.setRange(0, 100)
+        self.unsupervised_progress_bar.setValue(0)
+
+
     def run_unsupervised_classification(self):
-        pass
+        try:
+            # 确保已经加载了图像
+            if self.hsi is None:
+                print("No image loaded.")
+                self.visualization_label_class.setText("No image loaded.")
+                return
+
+            # 更新显示区域，显示 "Classification in progress..."
+            self.visualization_label_class.setText("Classification in progress...")
+
+            # 重置进度条为不确定状态
+            self.unsupervised_progress_bar.setRange(0, 0)  # 设置为不确定进度
+            self.unsupervised_progress_bar.setValue(0)
+
+            # 获取用户输入的参数
+            k = self.num_classes_input.value()
+            max_iterations = self.max_iterations_input.value()
+
+            # 获取高光谱数据和波长信息
+            hsi_data = self.hsi.load()
+            wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
+
+            # 创建并启动工作线程
+            self.unsupervised_worker = UnsupervisedClassificationWorker(
+                hsi_data, wavelengths, k, max_iterations
+            )
+
+            # 连接信号和槽
+            # 删除 progress_updated 信号的连接
+            # self.unsupervised_worker.progress_updated.connect(self.update_unsupervised_progress)
+            self.unsupervised_worker.classification_finished.connect(self.unsupervised_classification_finished)
+            self.unsupervised_worker.error_occurred.connect(self.unsupervised_classification_error)
+
+            # 启动工作线程
+            self.unsupervised_worker.start()
+
+        except Exception as e:
+            print(f"Error during unsupervised classification: {e}")
+            self.visualization_label_class.setText(f"Error: {str(e)}")
 
     def run_supervised_classification(self):
         """Load and classify the image, display in classification tab."""
@@ -653,6 +722,54 @@ class MainWindow(QMainWindow):
         elif button_text == "Classification":
             self.update_classification_tab()
 
+# # 定义 UnsupervisedClassificationWorker 类
+# class UnsupervisedClassificationWorker(QThread):
+#     progress_updated = pyqtSignal(int)
+#     classification_finished = pyqtSignal(QPixmap)
+#     error_occurred = pyqtSignal(str)
+#
+#     def __init__(self, hsi_data, wavelengths, k, max_iterations):
+#         super().__init__()
+#         self.hsi_data = hsi_data
+#         self.wavelengths = wavelengths
+#         self.k = k
+#         self.max_iterations = max_iterations
+#
+#     def run(self):
+#         try:
+#             # 模拟进度更新
+#             import time
+#
+#             total_steps = 5
+#             for step in range(1, total_steps + 1):
+#                 time.sleep(1)  # 模拟一些工作正在进行
+#                 progress = int(step / total_steps * 100)
+#                 self.progress_updated.emit(progress)
+#
+#             # 执行实际的分类
+#             cluster_map, ndvi = load_and_process_hsi_data(
+#                 self.hsi_data, self.wavelengths, self.k, self.max_iterations
+#             )
+#
+#             # 将聚类结果映射为彩色图像
+#             from matplotlib import pyplot as plt
+#             cluster_image_color = plt.cm.nipy_spectral(cluster_map / np.max(cluster_map))
+#             cluster_image_color = (cluster_image_color[:, :, :3] * 255).astype(np.uint8)
+#
+#             # 转换为 QPixmap
+#             height, width, _ = cluster_image_color.shape
+#             bytes_per_line = 3 * width
+#             q_image = QImage(
+#                 cluster_image_color.data, width, height, bytes_per_line, QImage.Format.Format_RGB888
+#             )
+#             pixmap = QPixmap.fromImage(q_image)
+#
+#             # 发出完成信号
+#             self.classification_finished.emit(pixmap)
+#
+#         except Exception as e:
+#             error_message = str(e)
+#             self.error_occurred.emit(error_message)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

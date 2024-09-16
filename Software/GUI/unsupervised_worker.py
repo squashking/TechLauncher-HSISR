@@ -1,0 +1,53 @@
+# unsupervised_worker.py
+import logging
+import os
+import sys
+
+from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtGui import QPixmap, QImage
+import numpy as np
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+
+
+
+class UnsupervisedClassificationWorker(QThread):
+    # 定义信号
+    classification_finished = pyqtSignal(QPixmap)
+    error_occurred = pyqtSignal(str)
+    # progress_updated 信号已删除
+
+    def __init__(self, hsi_data, wavelengths, k, max_iterations):
+        super().__init__()
+        self.hsi_data = hsi_data
+        self.wavelengths = wavelengths
+        self.k = k
+        self.max_iterations = max_iterations
+
+    def run(self):
+        try:
+            # 执行实际的分类，不再传递 logger 或 callback 参数
+            cluster_map, ndvi = load_and_process_hsi_data(
+                self.hsi_data, self.wavelengths, self.k, self.max_iterations
+            )
+
+            # 将聚类结果映射为彩色图像
+            from matplotlib import pyplot as plt
+            cluster_image_color = plt.cm.nipy_spectral(cluster_map / np.max(cluster_map))
+            cluster_image_color = (cluster_image_color[:, :, :3] * 255).astype(np.uint8)
+
+            # 转换为 QPixmap
+            height, width, _ = cluster_image_color.shape
+            bytes_per_line = 3 * width
+            q_image = QImage(
+                cluster_image_color.data, width, height, bytes_per_line, QImage.Format.Format_RGB888
+            )
+            pixmap = QPixmap.fromImage(q_image)
+
+            # 发出完成信号
+            self.classification_finished.emit(pixmap)
+
+        except Exception as e:
+            error_message = str(e)
+            self.error_occurred.emit(error_message)
