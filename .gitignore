@@ -1,3 +1,4 @@
 *.pyc
 __pycache__/
 Software/GUI/temp_sr/
+Software/GUI/One_sample/
