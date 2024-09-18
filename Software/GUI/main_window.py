@@ -15,16 +15,22 @@ import spectral.io.envi as envi
 from spectral import get_rgb
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import platform
 
-from Software.Functions.Basic_Functions.Load_HSI import load_hsi
-from Software.Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
-from Software.Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
-from Software.Functions.Calibration.calibrate import calibration
-from Software.Functions.Hypercube_Spectrum.Hypercube import show_cube
+if platform.system() == 'Windows':
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Software')))
+else:
+    # On macOS or other Unix-like systems, keep the original path
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from Functions.Basic_Functions.Load_HSI import load_hsi
+from Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
+from Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
+from Functions.Calibration.calibrate import calibration
+from Functions.Hypercube_Spectrum.Hypercube import show_cube
 from unsupervised_worker import UnsupervisedClassificationWorker
-from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
-from Software.Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
+from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+from Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
 
 
 class ClickableImage(QLabel):

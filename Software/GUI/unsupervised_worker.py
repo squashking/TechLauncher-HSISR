@@ -7,9 +7,15 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QImage
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+import platform
 
+if platform.system() == 'Windows':
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Software')))
+else:
+    # On macOS or other Unix-like systems, keep the original path
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
 
 
 class UnsupervisedClassificationWorker(QThread):
