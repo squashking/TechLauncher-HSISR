@@ -99,7 +99,7 @@ def create_envi_header(filename, dictMeta):
         file.write(','.join(map(str, dictMeta['WAVELENGTHS'])))
         file.write("}\n")
 
-def plot_spectrum(hsi_data, x, y, wavelengths=None):
+def plot_spectrum(hsi_data, x, y):
     """
     绘制给定像素点的光谱曲线。
 
@@ -110,12 +110,11 @@ def plot_spectrum(hsi_data, x, y, wavelengths=None):
     """
     # 提取像素点在所有波段上的光谱数据
     spectrum = hsi_data[y, x, :]  # 注意y是行，x是列
-
     # 如果 spectrum 是一个多维数组，需要将其展平成一维
     spectrum = spectrum.flatten()
-
     # 绘制光谱图
     plt.figure(figsize=(10, 6))
+    wavelengths = [float(w) for w in hsi_data.metadata['wavelength']]
     if wavelengths is not None:
         plt.plot(wavelengths, spectrum)
         plt.xlabel("Wavelength (nm)")
@@ -124,32 +123,32 @@ def plot_spectrum(hsi_data, x, y, wavelengths=None):
         plt.xlabel("Band Index")
 
     plt.ylabel("Reflectance")
-    plt.title(f"Spectrum at Pixel ({x}, {y})")
+    plt.title(f"Spectrum at Pixel ({y}, {x})")
     plt.grid(True)
     plt.show()
 
 
 
-def load_image(image_path, headerPath):
-    # check if it's PSI image format
-    with open(headerPath, "r") as file:
-        first_line = file.readline().strip()
-    if first_line.startswith("BYTEORDER"):  # PSI format
-        dictMeta = read_PSI_header(headerPath)
-        headerPath = header_path
-        create_envi_header(headerPath, dictMeta)
+# def load_image(image_path, headerPath):
+#     # check if it's PSI image format
+#     with open(headerPath, "r") as file:
+#         first_line = file.readline().strip()
+#     if first_line.startswith("BYTEORDER"):  # PSI format
+#         dictMeta = read_PSI_header(headerPath)
+#         headerPath = header_path
+#         create_envi_header(headerPath, dictMeta)
+#
+#     hsi = envi.open(headerPath, image_path)
+#     return hsi
 
-    hsi = envi.open(headerPath, image_path)
-    return hsi
 
-
-header_path = "Data/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.hdr"
-bil_path = "Data/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.bil"
-save_path = "Result.jpg"
-hsi = load_image(bil_path, header_path)
-
-# 从元数据中提取波长信息并保存到一个变量
-wavelengths = [float(w) for w in hsi.metadata['wavelength']]
-# xy 用户输入的数值
-plot_spectrum(hsi, x=50, y=50, wavelengths=wavelengths)
+# header_path = "Data/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.hdr"
+# bil_path = "Data/2021-03-31--12-56-31_round-0_cam-1_tray-Tray_1.bil"
+# save_path = "Result.jpg"
+# hsi = load_image(bil_path, header_path)
+#
+# # 从元数据中提取波长信息并保存到一个变量
+# wavelengths = [float(w) for w in hsi.metadata['wavelength']]
+# # xy 用户输入的数值
+# plot_spectrum(hsi, x=50, y=50)
 

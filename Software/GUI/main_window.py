@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QPushButton, QStackedWidget, QRadioButton, QLabel,
-                             QLineEdit, QHBoxLayout, QProgressBar, QGroupBox,
+                             QLineEdit, QHBoxLayout, QProgressBar, QGroupBox,QMenu,
                              QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -24,6 +24,7 @@ from Software.Functions.Calibration.calibrate import calibration
 from Software.Functions.Hypercube_Spectrum.Hypercube import show_cube
 from unsupervised_worker import UnsupervisedClassificationWorker
 from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+from Software.Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
 
 
 class ClickableImage(QLabel):
@@ -31,23 +32,43 @@ class ClickableImage(QLabel):
         super().__init__(parent)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loaded_image = None
-        self.mode = "RGB"  # Default mode
+        self.right_click_position = None  # To store the right-click position
+        self.hsi = None
+        self.mode = None
+
+    def set_hsi(self, hsi):
+        self.hsi = hsi
+
+    def set_mode(self, mode):
+        self.mode = mode
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            # Trigger plot when the image is clicked
-            self.show_plot()
+            pass
+        elif event.button() == Qt.MouseButton.RightButton:
+            if self.mode == "hypercube":
+                return
+            self.right_click_position = event.pos()
+            self.show_context_menu(event.pos())
 
-    def show_plot(self):
-        # This function will trigger the plt.show()
-        if self.loaded_image is not None:
-            if self.mode == "RGB":
-                plt.imshow(self.loaded_image)
-                plt.title("RGB Image")
-            elif self.mode == "NDVI":
-                plt.imshow(self.ndvi_image)
-                plt.title("NDVI Image")
-            plt.show()
+    def show_context_menu(self, position):
+        context_menu = QMenu(self)
+        action1 = QAction("Spectrum plot", self)
+        action1.triggered.connect(self.action1_triggered)
+        context_menu.addAction(action1)
+        context_menu.exec(self.mapToGlobal(position))
+
+    def action1_triggered(self):
+        if self.right_click_position is not None:
+            try:
+                x = self.right_click_position.x() / 1.4
+                y = self.right_click_position.y() / 1.4
+                print(x,y)
+                plot_spectrum(self.hsi, int(x), int(y))
+            except Exception as e:
+                error_message = f"Error plotting spectrum: {str(e)}"
+                print(error_message)
+
 
 
 class MainWindow(QMainWindow):
@@ -92,8 +113,8 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(right_layout)
 
         # Clickable image label (after defining main_layout)
-        self.image_label = ClickableImage(self)  # Using the custom ClickableImage class
-        right_layout.addWidget(self.image_label)  # Add it to right_layout instead of main_layout
+        # self.image_label = ClickableImage(self)  # Using the custom ClickableImage class
+        # right_layout.addWidget(self.image_label)  # Add it to right_layout instead of main_layout
 
         # Mode selection and visualization controls
         self.mode = "RGB"
@@ -183,7 +204,7 @@ class MainWindow(QMainWindow):
         # Load hyperspectral image using spectral library
         self.hsi = load_hsi(image_path,header_path)
         print(f"Hyperspectral image loaded successfully from {image_path}")
-        
+        self.visualization_label.set_hsi(self.hsi)
         # Convert to QImage and store the result in self.loaded_image for both visualization and classification
         height, width, _ = self.hsi.shape
         empty_image = QImage(width, height, QImage.Format.Format_RGB888)  # 交换 width 和 height 的位置
@@ -236,7 +257,8 @@ class MainWindow(QMainWindow):
             selected_mode = "PRI"
         elif self.radio_cube.isChecked():
             selected_mode = "hypercube"
-        
+
+        self.visualization_label.set_mode(selected_mode)
         if selected_mode is None:
             self.visualization_label.setText("Error: No mode selected")
             return
@@ -258,8 +280,9 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(page)
 
         # Visualization image label (takes up most of the space)
-        self.visualization_label = QLabel("Visualization Content", alignment=Qt.AlignmentFlag.AlignCenter)
-        self.visualization_label.setFixedHeight(525)  # Set an appropriate height or let it scale with content
+        self.visualization_label = ClickableImage(self)
+        self.visualization_label.setText("Visualization Content")
+        self.visualization_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
         self.visualization_label.setFixedWidth(700)
         layout.addWidget(self.visualization_label)
 
@@ -382,7 +405,7 @@ class MainWindow(QMainWindow):
 
         self.visualization_label_sr = QLabel("Visualization Content")
         self.visualization_label_sr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.visualization_label_sr.setFixedHeight(525)  # Set an appropriate height or let it scale with content
+        self.visualization_label_sr.setFixedHeight(539)  # Set an appropriate height or let it scale with content
         self.visualization_label_sr.setFixedWidth(700)
         layout.addWidget(self.visualization_label_sr)
 
@@ -540,7 +563,7 @@ class MainWindow(QMainWindow):
 
         self.visualization_label_class = QLabel("Visualization Content")
         self.visualization_label_class.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.visualization_label_class.setFixedHeight(525)
+        self.visualization_label_class.setFixedHeight(539)
         self.visualization_label_class.setFixedWidth(700)
         layout.addWidget(self.visualization_label_class)
 

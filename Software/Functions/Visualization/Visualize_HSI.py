@@ -101,24 +101,24 @@ def show_rgb(hsi,save_path):
     rgb_image = (rgb_image*255).astype(np.uint8)
     rgb_image = rgb_image.copy() # Spy don't load it to memory automatically, so must be copie
     print(f"RGB Image Shape: {rgb_image.shape}")
-    plt.imshow(rgb_image)
-    plt.axis('off')
+    # plt.imshow(rgb_image)
+    # plt.axis('off')
     # plt.show()  # Commented out
     if len(save_path) > 0:
         plt.imsave(save_path, rgb_image)
 
-def load_image(image_path,headerPath):
-    # check if it's PSI image format
-    with open(headerPath, "r") as file:
-        first_line = file.readline().strip()
-    print(first_line)
-    if first_line.startswith("BYTEORDER"): # PSI format
-        dictMeta = read_PSI_header(headerPath)
-        headerPath = header_path
-        create_envi_header(headerPath, dictMeta)
-
-    hsi = envi.open(headerPath, image_path)
-    return hsi
+# def load_image(image_path,headerPath):
+#     # check if it's PSI image format
+#     with open(headerPath, "r") as file:
+#         first_line = file.readline().strip()
+#     print(first_line)
+#     if first_line.startswith("BYTEORDER"): # PSI format
+#         dictMeta = read_PSI_header(headerPath)
+#         headerPath = header_path
+#         create_envi_header(headerPath, dictMeta)
+#
+#     hsi = envi.open(headerPath, image_path)
+#     return hsi
 
 def calculate_ndvi(hsi):
     """
@@ -152,10 +152,10 @@ def show_ndvi(hsi, save_path):
     ndvi_array = calculate_ndvi(hsi)
     ndvi_image = (ndvi_array - np.min(ndvi_array)) / (np.max(ndvi_array) - np.min(ndvi_array))  # Normalize to 0-1
 
-    plt.imshow(ndvi_image, cmap='RdYlGn')
-    plt.colorbar(label='NDVI')
-    plt.title("NDVI Image")
-    plt.axis('off')
+    # plt.imshow(ndvi_image, cmap='RdYlGn')
+    # plt.colorbar(label='NDVI')
+    # plt.title("NDVI Image")
+    # plt.axis('off')
     # plt.show()  # Commented out
     plt.imsave(save_path, ndvi_image, cmap='RdYlGn')
 
@@ -214,10 +214,10 @@ def show_evi(hsi, save_path):
 
     evi_image = (evi_array - min_val) / range_val
 
-    plt.imshow(evi_image, cmap='RdYlGn')
-    plt.colorbar(label='EVI')
-    plt.title("EVI Image")
-    plt.axis('off')
+    # plt.imshow(evi_image, cmap='RdYlGn')
+    # plt.colorbar(label='EVI')
+    # plt.title("EVI Image")
+    # plt.axis('off')
     # plt.show()  # Commented out
     plt.imsave(save_path, evi_image, cmap='RdYlGn')
 
@@ -274,10 +274,10 @@ def show_mcari(hsi, save_path):
 
     mcari_image = (mcari_array - min_val) / range_val
 
-    plt.imshow(mcari_image, cmap='viridis')
-    plt.colorbar(label='MCARI')
-    plt.title("MCARI Image")
-    plt.axis('off')
+    # plt.imshow(mcari_image, cmap='viridis')
+    # plt.colorbar(label='MCARI')
+    # plt.title("MCARI Image")
+    # plt.axis('off')
     # plt.show()  # Commented out
     plt.imsave(save_path, mcari_image, cmap='viridis')
 
@@ -331,10 +331,10 @@ def show_mtvi(hsi, save_path):
 
     mtvi_image = (mtvi_array - min_val) / range_val
 
-    plt.imshow(mtvi_image, cmap='viridis')
-    plt.colorbar(label='MTVI')
-    plt.title("MTVI Image")
-    plt.axis('off')
+    # plt.imshow(mtvi_image, cmap='viridis')
+    # plt.colorbar(label='MTVI')
+    # plt.title("MTVI Image")
+    # plt.axis('off')
     # plt.show()  # Commented out
     plt.imsave(save_path, mtvi_image, cmap='viridis')
 
@@ -370,10 +370,10 @@ def show_osavi(hsi, save_path):
     osavi_array = calculate_osavi(hsi)
     osavi_image = (osavi_array - np.min(osavi_array)) / (np.max(osavi_array) - np.min(osavi_array))
 
-    plt.imshow(osavi_image, cmap='RdYlGn')
-    plt.colorbar(label='OSAVI')
-    plt.title("OSAVI Image")
-    plt.axis('off')
+    # plt.imshow(osavi_image, cmap='RdYlGn')
+    # plt.colorbar(label='OSAVI')
+    # plt.title("OSAVI Image")
+    # plt.axis('off')
     # plt.show()  # Commented out
     plt.imsave(save_path, osavi_image, cmap='RdYlGn')
 
@@ -428,10 +428,10 @@ def show_pri(hsi, save_path):
 
     pri_image = (pri_array - min_val) / range_val
 
-    plt.imshow(pri_image, cmap='Spectral')
-    plt.colorbar(label='PRI')
-    plt.title("PRI Image")
-    plt.axis('off')
+    # plt.imshow(pri_image, cmap='Spectral')
+    # plt.colorbar(label='PRI')
+    # plt.title("PRI Image")
+    # plt.axis('off')
     # plt.show()  # Commented out
     plt.imsave(save_path, pri_image, cmap='Spectral')
 
