@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QT
                              QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from hyperspectral_classifier import HyperspectralClassifier 
+
 import matplotlib.pyplot as plt
 import shutil
 import time
@@ -31,7 +31,7 @@ from Functions.Hypercube_Spectrum.Hypercube import show_cube
 from unsupervised_worker import UnsupervisedClassificationWorker
 from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
 from Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
-
+from Functions.Supervised_classification.hyperspectral_classifier import HyperspectralClassifier 
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -628,7 +628,10 @@ class MainWindow(QMainWindow):
         classifier_layout = QHBoxLayout()
         classifier_label = QLabel("Classifier:")
         self.classifier_combo = QComboBox()
-        self.classifier_combo.addItem("GaussianClassifier")
+        self.classifier_combo.addItem("Gaussian")
+        self.classifier_combo.addItem("Mahalanobis")
+        self.classifier_combo.addItem("Perceptron")
+
         classifier_layout.addWidget(classifier_label)
         classifier_layout.addWidget(self.classifier_combo)
         classifier_layout.addStretch()
@@ -707,9 +710,13 @@ class MainWindow(QMainWindow):
         """Load and classify the image, display in classification tab."""
         groundtruth_path = self.groundtruth_input.text()
         header_path = self.image_path.replace('.bil', '.hdr')
-        # Load and classify the image
+
+        # Get the selected classifier type from the combo box
+        selected_classifier = self.classifier_combo.currentText()
+
+        # Load and classify the image based on the selected classifier
         self.classifier.load_image(self.image_path, header_path)
-        result_image_path = self.classifier.classify(groundtruth_path)
+        result_image_path = self.classifier.classify(groundtruth_path, classifier_type=selected_classifier)
 
         # Load the classified image as QPixmap
         pixmap = QPixmap(result_image_path)
@@ -718,6 +725,7 @@ class MainWindow(QMainWindow):
 
         # Store the loaded image in self.loaded_image for visualization tab
         self.loaded_image = pixmap
+
 
     def update_visualization_tab(self):
         """Update the visualization tab with the loaded RGB image from the .bil file."""

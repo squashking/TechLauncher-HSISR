@@ -1,5 +1,3 @@
-# hyperspectral_classifier.py
-
 import spectral as spy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -75,9 +73,10 @@ class HyperspectralClassifier:
             file.write(','.join(map(str, dictMeta['WAVELENGTHS'])))
             file.write("}\n")
 
-    def classify(self, mask_path):
+    def classify(self, mask_path, classifier_type='Gaussian'):
         """
-        Performs the classification using the GaussianClassifier and saves the results.
+        Performs the classification using the selected classifier (Gaussian, Mahalanobis, or Perceptron)
+        and saves the results.
         """
         # Load the hyperspectral image data
         img = self.hsi.load()
@@ -88,10 +87,46 @@ class HyperspectralClassifier:
 
         # Create training classes based on the ground truth
         classes = spy.create_training_classes(img, self.gt)
-        gmlc = spy.GaussianClassifier(classes)
+
+        # Select classifier based on input
+        if classifier_type == 'Gaussian':
+            classifier = spy.GaussianClassifier(classes)
+        elif classifier_type == 'Mahalanobis':
+            # Temporarily assign np.float to np.float64 to avoid deprecation errors
+            np.float = np.float64
+            classifier = spy.MahalanobisDistanceClassifier(classes)
+        elif classifier_type == 'Perceptron':
+            # Map ground truth labels to consecutive integers starting from 0
+            unique_labels = np.unique(self.gt)
+            label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
+            ground_truth_mapped = np.copy(self.gt)
+            for original_label, mapped_label in label_mapping.items():
+                ground_truth_mapped[self.gt == original_label] = mapped_label
+
+            # Create training classes based on the mapped ground truth
+            training_classes = spy.create_training_classes(img, ground_truth_mapped)
+
+            # Determine the number of input neurons (equal to the number of spectral bands)
+            input_neurons = img.shape[-1]
+            # Number of output neurons (equal to the number of unique classes)
+            num_classes = len(training_classes)
+
+            # Initialize Perceptron classifier with appropriate layers
+            layers = [input_neurons, 100, 50, num_classes]
+            classifier = spy.PerceptronClassifier(layers=layers)
+
+            # Train the Perceptron model
+            classifier.train(training_classes, max_iterations=10)
+
+        else:
+            raise ValueError(f"Unknown classifier type: {classifier_type}")
 
         # Perform classification on the entire image
-        clmap = gmlc.classify_image(img)
+        clmap = classifier.classify_image(img)
+
+        # Restore np.float to its original type (just for completeness, though it's not strictly necessary)
+        if classifier_type == 'Mahalanobis':
+            np.float = float
 
         # Create result folder if it doesn't exist
         result_folder = "result"
@@ -101,7 +136,7 @@ class HyperspectralClassifier:
         # Only show classification results where there is ground truth
         gtresults = clmap * (self.gt != 0)
         spy.imshow(classes=gtresults)
-        plt.savefig(os.path.join(result_folder, 'gtresults.png'))
+        plt.savefig(os.path.join(result_folder, f'gtresults_{classifier_type}.png'))
         plt.close()  # Close the plot to avoid showing in GUI return
 
-        return os.path.join(result_folder, 'gtresults.png')
+        return os.path.join(result_folder, f'gtresults_{classifier_type}.png')
