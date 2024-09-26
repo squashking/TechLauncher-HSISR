@@ -83,6 +83,8 @@ class ClassificationImageLabel(QLabel):
         self.ndvi = None
         self.original_pixmap = None
         self.ndvi_display = ndvi_display
+        self.hsi = None  # Add this to hold the HSI data
+        self.cluster_image_color = None  # To hold the color image array
 
     def set_cluster_map(self, cluster_map):
         self.cluster_map = cluster_map
@@ -115,8 +117,106 @@ class ClassificationImageLabel(QLabel):
                             self.selected_clusters.add(cluster_label)
                         self.update_display()
                         self.update_ndvi_display()
+        elif event.button() == Qt.MouseButton.RightButton:
+            # Handle right-click: show context menu
+            pos = event.pos()
+            self.show_context_menu(pos)
         else:
             super().mousePressEvent(event)
+
+    def show_context_menu(self, position):
+        context_menu = QMenu(self)
+        action_spectrum = QAction("Spectrum plot", self)
+        action_spectrum.triggered.connect(lambda: self.show_spectrum_plot(position))
+        action_save_image = QAction("Save Image", self)
+        action_save_image.triggered.connect(self.save_masked_image)
+        context_menu.addAction(action_spectrum)
+        context_menu.addAction(action_save_image)
+        context_menu.exec(self.mapToGlobal(position))
+
+    # Add a method to set HSI data
+    def set_hsi(self, hsi):
+        self.hsi = hsi
+
+    # Method to show spectrum plot
+    def show_spectrum_plot(self, position):
+        if self.hsi is None:
+            print("HSI data not available")
+            return
+        # Convert position to image coordinates
+        x, y = self.convert_position_to_image_coords(position)
+        if x is not None and y is not None:
+            try:
+                plot_spectrum(self.hsi, x, y)
+            except Exception as e:
+                print(f"Error plotting spectrum: {e}")
+        else:
+            print("Invalid position for spectrum plot")
+
+    def convert_position_to_image_coords(self, position):
+        x = position.x()
+        y = position.y()
+        pixmap = self.pixmap()
+        if pixmap:
+            label_width = self.width()
+            label_height = self.height()
+            pixmap_width = pixmap.width()
+            pixmap_height = pixmap.height()
+
+            ratio_x = pixmap_width / label_width
+            ratio_y = pixmap_height / label_height
+
+            img_x = int(x * ratio_x)
+            img_y = int(y * ratio_y)
+
+            # Ensure coordinates are within bounds
+            img_x = min(max(img_x, 0), self.cluster_map.shape[1] - 1)
+            img_y = min(max(img_y, 0), self.cluster_map.shape[0] - 1)
+
+            return img_x, img_y
+        else:
+            return None, None
+
+    def set_cluster_image_color(self, cluster_image_color):
+        self.cluster_image_color = cluster_image_color  # Store the color image array
+
+    def save_masked_image(self):
+        if self.cluster_map is None or self.cluster_image_color is None:
+            print("No cluster map or image data available")
+            return
+
+        try:
+            # Create a mask of the selected clusters
+            if self.selected_clusters:
+                mask = np.isin(self.cluster_map, list(self.selected_clusters))
+            else:
+                mask = np.ones_like(self.cluster_map, dtype=bool)  # If no clusters selected, include all
+
+            # Apply the mask to the image
+            masked_image = self.cluster_image_color.copy()
+            masked_image[~mask, :] = [0.0, 0.0, 0.0]  # Black out unselected regions
+
+            # Convert to uint8
+            image_to_save = (masked_image[:, :, :3] * 255).astype(np.uint8)
+
+            # Use QFileDialog to choose save location (options adjusted for PyQt6)
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Masked Image",
+                "",
+                "PNG Files (*.png);;All Files (*)"
+                # No 'options' parameter needed if not setting any options
+            )
+            if file_path:
+                # Save the image using PIL
+                from PIL import Image
+                image = Image.fromarray(image_to_save)
+                image.save(file_path)
+                print(f"Masked image saved to {file_path}")
+            else:
+                print("Save operation cancelled")
+        except Exception as e:
+            print(f"Error in save_masked_image: {e}")
 
     def update_display(self):
         if self.cluster_map is None:
@@ -815,10 +915,25 @@ class MainWindow(QMainWindow):
 
 
 
-    def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi):
-        # Set cluster_map and ndvi in the image label
+    # def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi):
+    #     # Set cluster_map and ndvi in the image label
+    #     self.visualization_label_class.set_cluster_map(cluster_map)
+    #     self.visualization_label_class.set_ndvi(ndvi)
+    #     self.visualization_label_class.original_pixmap = pixmap
+    #
+    #     # Display the classification result
+    #     self.visualization_label_class.setPixmap(pixmap)
+    #     self.visualization_label_class.setScaledContents(True)
+    #
+    #     # Update the progress bar
+    #     self.unsupervised_progress_bar.setRange(0, 100)
+    #     self.unsupervised_progress_bar.setValue(100)
+    def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi, cluster_image_color):
+        # Set cluster_map, ndvi, hsi, and cluster_image_color in the image label
         self.visualization_label_class.set_cluster_map(cluster_map)
         self.visualization_label_class.set_ndvi(ndvi)
+        self.visualization_label_class.set_hsi(self.hsi)  # Pass hsi to the image label
+        self.visualization_label_class.set_cluster_image_color(cluster_image_color)
         self.visualization_label_class.original_pixmap = pixmap
 
         # Display the classification result
@@ -854,6 +969,17 @@ class MainWindow(QMainWindow):
             hsi_data = self.hsi.load()
             wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
 
+            # self.unsupervised_worker = UnsupervisedClassificationWorker(
+            #     hsi_data, wavelengths, k, max_iterations
+            # )
+            #
+            # # Connect the signals
+            # self.unsupervised_worker.classification_finished.connect(self.unsupervised_classification_finished)
+            # self.unsupervised_worker.error_occurred.connect(self.unsupervised_classification_error)
+            #
+            # self.unsupervised_worker.start()
+
+            # Create and start the worker
             self.unsupervised_worker = UnsupervisedClassificationWorker(
                 hsi_data, wavelengths, k, max_iterations
             )
