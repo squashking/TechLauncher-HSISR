@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 import matplotlib.pyplot as plt
 import shutil
+import copy
 import time
 import threading
 import spectral.io.envi as envi
@@ -648,90 +649,104 @@ class MainWindow(QMainWindow):
         
     def run_calibration(self):
         """Run the calibration process based on user input and display the result."""
-        dark_hdr = self.dark_file_hdr_input.text()
-        dark_bil = self.dark_file_bil_input.text()
-        ref_hdr = self.ref_file_hdr_input.text()
-        ref_bil = self.ref_file_bil_input.text()
+        dark_hdr = self.calibration_input_mapping["dark_hdr"].text()
+        dark_bil = self.calibration_input_mapping["dark_bil"].text()
+        ref_hdr = self.calibration_input_mapping["ref_hdr"].text()
+        ref_bil = self.calibration_input_mapping["ref_bil"].text()
+        input_hdr = self.calibration_input_mapping["input_hdr"].text()
+        input_bil = self.calibration_input_mapping["input_bil"].text()
+        output_filename = self.calibration_input_mapping["output_filename"].text()
+        if len(output_filename) == 0:
+            output_filename = None
         threshold = int(self.threshold_input.text())
 
-        if not all([dark_hdr, dark_bil, ref_hdr, ref_bil]):
-            print("Error: Please provide all file paths.")
-            self.calibration_image_label.setText("Error: Missing file paths")
+        if not all([dark_hdr, dark_bil, ref_hdr, ref_bil, input_hdr, input_bil]):
+            print("Error: Please provide all file paths")
+            self.calibration_image_label.setText("Error: Missing file paths\nOutput file is optional")
             return
 
         try:
-            # Use the imported calibration function from Functions.Calibration.demo
-            calibration(dark_hdr, dark_bil, ref_hdr, ref_bil, ["average", "demo"], threshold)
+            dark_hsi = load_hsi(dark_bil, dark_hdr)
+            ref_hsi = load_hsi(ref_bil, ref_hdr)
+            input_hsi = load_hsi(input_bil, input_hdr)
+        except Exception as _:
+            print("Load file error")
+            self.calibration_image_label.setText(f"Load file error")
 
-            # Load the resulting image
-            result_image_path = "result.bil"
-            result_header_path = "result.hdr"
+        try:
+            # Call calibration function in Functions module
+            result_hsi = calibration(dark_hsi, ref_hsi, input_hsi, output_filename, threshold)
 
-            result_hsi = envi.open(result_header_path, result_image_path)
+            # Load the result
+            result_image_path = "calibration.png" if output_filename is None else (output_filename + ".png")
             tuple_rgb_bands = find_RGB_bands([float(i) for i in result_hsi.metadata['wavelength']])
             rgb_image = get_rgb(result_hsi, tuple_rgb_bands)
             rgb_image = (rgb_image * 255).astype(np.uint8)
+            show_rgb(result_hsi, result_image_path)
 
             # Convert to QImage for display
             height, width, _ = rgb_image.shape
             bytes_per_line = 3 * width
-            qimage = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
-            pixmap = QPixmap(qimage)
+            pixmap = QPixmap(result_image_path)
 
             # Update the label to display the calibration result
             self.calibration_image_label.setPixmap(pixmap)
             self.calibration_image_label.setScaledContents(True)
 
-        except Exception as e:
-            print(f"Error during calibration: {str(e)}")
-            self.calibration_image_label.setText(f"Error: {str(e)}")
+            # Remove temporary files
+            if output_filename is None:
+                os.remove(result_image_path)
+
+        except Exception as _:
+            print(f"Calibration error")
+            self.calibration_image_label.setText(f"Calibration error")
 
     def create_calibration_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
 
-        # Dark file input (hdr and bil)
-        dark_file_hdr_layout = QHBoxLayout()
-        dark_file_hdr_label = QLabel("Dark File HDR:")
-        self.dark_file_hdr_input = QLineEdit()
-        dark_file_hdr_button = QPushButton("Browse")
-        dark_file_hdr_button.clicked.connect(lambda: self.browse_file(self.dark_file_hdr_input))
-        dark_file_hdr_layout.addWidget(dark_file_hdr_label)
-        dark_file_hdr_layout.addWidget(self.dark_file_hdr_input)
-        dark_file_hdr_layout.addWidget(dark_file_hdr_button)
-        
-        dark_file_bil_layout = QHBoxLayout()
-        dark_file_bil_label = QLabel("Dark File BIL:")
-        self.dark_file_bil_input = QLineEdit()
-        dark_file_bil_button = QPushButton("Browse")
-        dark_file_bil_button.clicked.connect(lambda: self.browse_file(self.dark_file_bil_input))
-        dark_file_bil_layout.addWidget(dark_file_bil_label)
-        dark_file_bil_layout.addWidget(self.dark_file_bil_input)
-        dark_file_bil_layout.addWidget(dark_file_bil_button)
+        calibration_display_text_mapping = {
+            "dark_hdr": "Dark File HDR",
+            "dark_bil": "Dark File BIL",
+            "ref_hdr": "Reference File HDR",
+            "ref_bil": "Reference File BIL",
+            "input_hdr": "Input File HDR",
+            "input_bil": "Input File BIL",
+            "output_filename": "Output File",
+        }
+        calibration_file_types = calibration_display_text_mapping.keys()
+        calibration_default_input = {
+            "dark_hdr": "dark.hdr",
+            "dark_bil": "dark.bil",
+            "ref_hdr": "ref.hdr",
+            "ref_bil": "ref.bil",
+            "input_hdr": "input.hdr",
+            "input_bil": "input.bil",
+        }
+        self.calibration_input_mapping = dict()
 
-        # Reference file input (hdr and bil)
-        ref_file_hdr_layout = QHBoxLayout()
-        ref_file_hdr_label = QLabel("Reference File HDR:")
-        self.ref_file_hdr_input = QLineEdit()
-        ref_file_hdr_button = QPushButton("Browse")
-        ref_file_hdr_button.clicked.connect(lambda: self.browse_file(self.ref_file_hdr_input))
-        ref_file_hdr_layout.addWidget(ref_file_hdr_label)
-        ref_file_hdr_layout.addWidget(self.ref_file_hdr_input)
-        ref_file_hdr_layout.addWidget(ref_file_hdr_button)
+        def connect_fn_generator(file_type):
+            ft = copy.copy(file_type)
+            return lambda: self.browse_file(self.calibration_input_mapping[ft])
 
-        ref_file_bil_layout = QHBoxLayout()
-        ref_file_bil_label = QLabel("Reference File BIL:")
-        self.ref_file_bil_input = QLineEdit()
-        ref_file_bil_button = QPushButton("Browse")
-        ref_file_bil_button.clicked.connect(lambda: self.browse_file(self.ref_file_bil_input))
-        ref_file_bil_layout.addWidget(ref_file_bil_label)
-        ref_file_bil_layout.addWidget(self.ref_file_bil_input)
-        ref_file_bil_layout.addWidget(ref_file_bil_button)
+        for file_type in calibration_file_types:
+            current_layout = QHBoxLayout()
+            current_label = QLabel(calibration_display_text_mapping[file_type])
+            self.calibration_input_mapping[file_type] = QLineEdit(calibration_default_input[file_type]) if file_type in calibration_default_input else QLineEdit()
+
+            current_button = QPushButton("Browse")
+            current_button.clicked.connect(connect_fn_generator(file_type))
+
+            current_layout.addWidget(current_label)
+            current_layout.addWidget(self.calibration_input_mapping[file_type])
+            current_layout.addWidget(current_button)
+
+            layout.addLayout(current_layout)
 
         # Calibration threshold input
         threshold_layout = QHBoxLayout()
         threshold_label = QLabel("Threshold:")
-        self.threshold_input = QLineEdit("10")  # Default threshold value
+        self.threshold_input = QLineEdit("5")  # Default value
         threshold_layout.addWidget(threshold_label)
         threshold_layout.addWidget(self.threshold_input)
 
@@ -740,10 +755,6 @@ class MainWindow(QMainWindow):
         calibrate_button.clicked.connect(self.run_calibration)
 
         # Layout organization
-        layout.addLayout(dark_file_hdr_layout)
-        layout.addLayout(dark_file_bil_layout)
-        layout.addLayout(ref_file_hdr_layout)
-        layout.addLayout(ref_file_bil_layout)
         layout.addLayout(threshold_layout)
         layout.addWidget(calibrate_button)
 
@@ -759,8 +770,6 @@ class MainWindow(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Open file', None, "All Files (*.*)")
         if file_path:
             line_edit.setText(file_path)
-
-
 
     def create_classification_page(self):
         page = QWidget()
