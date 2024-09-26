@@ -45,10 +45,13 @@ def load_and_process_hsi_data(hsi_data, wavelengths, k=5, max_iterations=10):
 
     # 找到红色和近红外波段
     red_band_index, nir_band_index = find_Red_NIR_bands(wavelengths)
-    red_band = hsi_data[:, :, red_band_index]
-    nir_band = hsi_data[:, :, nir_band_index]
+    red_band = hsi_data[:, :, red_band_index].squeeze()
+    nir_band = hsi_data[:, :, nir_band_index].squeeze()
+    # print(f"Red band shape: {red_band.shape}")
+    # print(f"NIR band shape: {nir_band.shape}")
 
     # 计算 NDVI
     ndvi = calculate_ndvi(nir_band, red_band)
+    # print(f"NDVI shape after calculation: {ndvi.shape}")
 
     return cluster_map, ndvi
