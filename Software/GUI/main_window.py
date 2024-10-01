@@ -563,8 +563,20 @@ class MainWindow(QMainWindow):
         save_path = "img/temp_rgb.png"
         show_rgb(self.hsi, save_path)
         pixmap = QPixmap(save_path)
-        # Store the loaded RGB image for later use in both classification and visualization
-        self.loaded_image = pixmap
+        
+        # make the path auto displayed
+        if not pixmap.isNull():
+            self.loaded_image = pixmap
+            print("QPixmap successfully loaded.")
+            
+            # Update the file path label here immediately
+            self.visualization_file_label.setText(f"File path: {self.image_path}")
+        else:
+            print("Failed to load QPixmap from the generated RGB image.")
+            return
+        
+        # Call to update the visualization tab
+        self.update_visualization_tab()
 
     def save_image(self):
         """Save the currently visualized image."""
@@ -1176,6 +1188,13 @@ class MainWindow(QMainWindow):
         else:
             self.super_resolution_file_label.setText("File path: No image loaded")
             self.visualization_label_sr.setText("No image loaded")
+            
+    def update_calibration_tab(self):
+        """Update the calibration tab with the loaded image path."""
+        if self.image_path:  # If an image was loaded
+            self.calibration_file_label.setText(f"File path: {self.image_path}")
+        else:
+            self.calibration_file_label.setText("File path: No image loaded")
 
 
     def update_classification_tab(self):
@@ -1193,9 +1212,11 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(index)
 
         if button_text == "Visualization":
-            self.update_visualization_tab()  # Update the visualization tab with the loaded image
+            self.update_visualization_tab()
         elif button_text == "Super-resolution":
-            self.update_super_resolution_tab()  # 更新超分辨率页面的文件路径
+            self.update_super_resolution_tab() 
+        elif button_text == "Calibration":
+            self.update_calibration_tab()
         elif button_text == "Classification":
             self.update_classification_tab()
 
