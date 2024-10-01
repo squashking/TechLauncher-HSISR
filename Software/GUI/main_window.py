@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QT
                              QLineEdit, QHBoxLayout, QProgressBar, QGroupBox,QMenu,
                              QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal,QTimer
 
 import matplotlib.pyplot as plt
 import shutil
@@ -578,7 +578,7 @@ class MainWindow(QMainWindow):
         else:
             print("No image to save.")
             
-    def visualize_selected_mode(self):
+    def visualize_selected_mode(self,mode):
         # Create a dictionary mapping modes to their corresponding functions and output file names
         mode_mapping = {
             "RGB": ("img/visualization_rgb.png", show_rgb),
@@ -591,32 +591,13 @@ class MainWindow(QMainWindow):
             "hypercube": ("img/visualization_cube.png", show_cube)
         }
 
-        # Determine which radio button is checked and select the appropriate function and file name
-        selected_mode = None
-        if self.radio_rgb.isChecked():
-            selected_mode = "RGB"
-        elif self.radio_ndvi.isChecked():
-            selected_mode = "NDVI"
-        elif self.radio_evi.isChecked():
-            selected_mode = "EVI"
-        elif self.radio_mcari.isChecked():
-            selected_mode = "MCARI"
-        elif self.radio_mtvi.isChecked():
-            selected_mode = "MTVI"
-        elif self.radio_osavi.isChecked():
-            selected_mode = "OSAVI"
-        elif self.radio_pri.isChecked():
-            selected_mode = "PRI"
-        elif self.radio_cube.isChecked():
-            selected_mode = "hypercube"
-
-        self.visualization_label.set_mode(selected_mode)
-        if selected_mode is None:
+        self.visualization_label.set_mode(mode)
+        if mode is None:
             self.visualization_label.setText("Error: No mode selected")
             return
 
         # Get the file path and function for the selected mode
-        save_path, visualization_function = mode_mapping[selected_mode]
+        save_path, visualization_function = mode_mapping[mode]
 
         # Call the corresponding visualization function
         try:
@@ -625,7 +606,7 @@ class MainWindow(QMainWindow):
             self.visualization_label.setPixmap(pixmap)
             self.visualization_label.setScaledContents(True)
         except Exception as e:
-            self.visualization_label.setText(f"Error visualizing {selected_mode}: {str(e)}")
+            self.visualization_label.setText(f"Error visualizing {mode}: {str(e)}")
 
     def create_visualization_page(self):
         page = QWidget()
@@ -660,6 +641,15 @@ class MainWindow(QMainWindow):
         self.radio_pri = QRadioButton("PRI")
         self.radio_cube = QRadioButton("HyperCube")
 
+        self.radio_rgb.clicked.connect(lambda: self.visualize_selected_mode("RGB"))
+        self.radio_ndvi.clicked.connect(lambda: self.visualize_selected_mode("NDVI"))
+        self.radio_evi.clicked.connect(lambda: self.visualize_selected_mode("EVI"))
+        self.radio_mcari.clicked.connect(lambda: self.visualize_selected_mode("MCARI"))
+        self.radio_mtvi.clicked.connect(lambda: self.visualize_selected_mode("MTVI"))
+        self.radio_osavi.clicked.connect(lambda: self.visualize_selected_mode("OSAVI"))
+        self.radio_pri.clicked.connect(lambda: self.visualize_selected_mode("PRI"))
+        self.radio_cube.clicked.connect(lambda: self.visualize_selected_mode("hypercube"))
+
         mode_layout_top.addWidget(self.radio_rgb)
         mode_layout_top.addWidget(self.radio_ndvi)
         mode_layout_top.addWidget(self.radio_evi)
@@ -675,11 +665,6 @@ class MainWindow(QMainWindow):
         mode_group.setLayout(mode_layout_vertical)
 
         layout.addWidget(mode_group)
-
-        # Button to trigger visualization
-        visualize_button = QPushButton("Visualize")
-        visualize_button.clicked.connect(self.visualize_selected_mode)
-        layout.addWidget(visualize_button)
 
         # Add the page to the stack
         self.stack.addWidget(page)
@@ -740,6 +725,7 @@ class MainWindow(QMainWindow):
                 if message == "完成":
                     self.target_progress = 100
                     threading.Thread(target=update_progress, args=(1,), daemon=True).start()
+                    QTimer.singleShot(1000, self.show_super_resolution_result)
                 else:
                     self.target_progress = min(self.target_progress + 25, 99)
                     threading.Thread(target=update_progress, daemon=True).start()
@@ -749,6 +735,12 @@ class MainWindow(QMainWindow):
                                  callback=progress_callback)
         else:
             print("取消超分辨率处理")
+
+    def show_super_resolution_result(self):
+        # 显示超分辨率处理的结果
+        self.show_resolution_image("high")
+        self.radio_high_res.setChecked(True)
+        self.radio_low_res.setChecked(False)
 
     def create_super_resolution_page(self):
         page = QWidget()
@@ -776,6 +768,7 @@ class MainWindow(QMainWindow):
         self.radio_super_res.setChecked(False)
         self.radio_low_res = QRadioButton("Low Res")
         self.radio_high_res = QRadioButton("High Res")
+
         self.radio_super_res.clicked.connect(self.handle_super_resolution)
         self.radio_low_res.clicked.connect(lambda: self.show_resolution_image("low"))
         self.radio_high_res.clicked.connect(lambda: self.show_resolution_image("high"))
@@ -1159,8 +1152,12 @@ class MainWindow(QMainWindow):
     def update_super_resolution_tab(self):
         if self.loaded_image:  # If an image was loaded
             self.super_resolution_file_label.setText(f"File path: {self.image_path} ")
+            self.super_resolution_file_label.setText(f"File path: {self.image_path}")
+            self.show_resolution_image("low")
+            self.radio_low_res.setChecked(True)
         else:
             self.super_resolution_file_label.setText("File path: No image loaded")
+            self.visualization_label_sr.setText("No image loaded")
 
 
     def update_classification_tab(self):

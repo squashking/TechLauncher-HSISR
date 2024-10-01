@@ -173,13 +173,14 @@ def show_cube(data, save_path):
 
     # 设置视角
     ax.view_init(elev=30, azim=45)
-
-    if len(save_path) > 0:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    else:
-        plt.show()
-
-    plt.close(fig)
+    plt.title('Hypercube Visualization')
+    plt.show()
+    # if len(save_path) > 0:
+    #     plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    # else:
+    #     plt.show()
+    #
+    # plt.close(fig)
 
 
 # 使用示例
