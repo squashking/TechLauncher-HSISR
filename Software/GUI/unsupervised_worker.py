@@ -15,7 +15,7 @@ else:
     # On macOS or other Unix-like systems, keep the original path
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
 
 
 

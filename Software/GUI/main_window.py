@@ -25,15 +25,15 @@ else:
     # On macOS or other Unix-like systems, keep the original path
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Software.Functions.Basic_Functions.Load_HSI import load_hsi
-from Software.Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
-from Software.Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
-from Software.Functions.Calibration.calibrate import calibration
-from Software.Functions.Hypercube_Spectrum.Hypercube import show_cube
+from Functions.Basic_Functions.Load_HSI import load_hsi
+from Functions.Visualization.Visualize_HSI import find_RGB_bands, show_rgb, show_ndvi, show_evi, show_mcari, show_mtvi, show_osavi, show_pri
+from Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
+from Functions.Calibration.calibrate import calibration
+from Functions.Hypercube_Spectrum.Hypercube import show_cube
 from unsupervised_worker import UnsupervisedClassificationWorker
-from Software.Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
-from Software.Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
-from Software.Functions.Supervised_classification.hyperspectral_classifier import HyperspectralClassifier
+from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
+from Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
+from Functions.Supervised_classification.hyperspectral_classifier import HyperspectralClassifier
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -622,9 +622,11 @@ class MainWindow(QMainWindow):
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
         
-        # Mode selection banner
-        file_path_label = QLabel("File path:")
-        self.file_input = QLineEdit("Path/to/actual/image")
+        # File path label (same layout as Super-resolution tab)
+        file_layout = QHBoxLayout()
+        self.visualization_file_label = QLabel("File path: No image loaded")
+        file_layout.addWidget(self.visualization_file_label)
+        layout.addLayout(file_layout)
 
         # Visualization Mode Options
         mode_group = QGroupBox("Mode:")
@@ -668,6 +670,7 @@ class MainWindow(QMainWindow):
 
         # Add the page to the stack
         self.stack.addWidget(page)
+
 
     def show_resolution_image(self, resolution):
         if resolution == "low":
@@ -788,6 +791,11 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(page)
         
     def run_calibration(self):
+        # Load and set file path for the calibration
+        if self.image_path:
+            self.calibration_file_label.setText(f"File path: {self.image_path}")
+        else:
+            self.calibration_file_label.setText("File path: No image loaded")
         """Run the calibration process based on user input and display the result."""
         dark_hdr = self.calibration_input_mapping["dark_hdr"].text()
         dark_bil = self.calibration_input_mapping["dark_bil"].text()
@@ -844,6 +852,12 @@ class MainWindow(QMainWindow):
     def create_calibration_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
+
+        # File path label (same layout as Super-resolution tab)
+        file_layout = QHBoxLayout()
+        self.calibration_file_label = QLabel("File path: No image loaded")
+        file_layout.addWidget(self.calibration_file_label)
+        layout.addLayout(file_layout)
 
         calibration_display_text_mapping = {
             "dark_hdr": "Dark File HDR",
@@ -904,6 +918,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch(1)
         self.stack.addWidget(page)
+
 
     def browse_file(self, line_edit):
         """Helper function to browse and set file paths."""
@@ -1144,10 +1159,13 @@ class MainWindow(QMainWindow):
     def update_visualization_tab(self):
         """Update the visualization tab with the loaded RGB image from the .bil file."""
         if self.loaded_image:  # If an image was loaded
+            self.visualization_file_label.setText(f"File path: {self.image_path}")
             self.visualization_label.setPixmap(self.loaded_image)
             self.visualization_label.setScaledContents(True)
         else:
+            self.visualization_file_label.setText("File path: No image loaded")
             self.visualization_label.setText("No image loaded")
+
 
     def update_super_resolution_tab(self):
         if self.loaded_image:  # If an image was loaded
