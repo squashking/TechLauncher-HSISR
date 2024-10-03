@@ -629,7 +629,7 @@ class MainWindow(QMainWindow):
         self.visualization_label.setText("Visualization Content")
         self.visualization_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
         self.visualization_label.setFixedWidth(700)
-        layout.addWidget(self.visualization_label)
+        layout.addWidget(self.visualization_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
@@ -766,7 +766,7 @@ class MainWindow(QMainWindow):
         self.visualization_label_sr.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.visualization_label_sr.setFixedHeight(539)  # Set an appropriate height or let it scale with content
         self.visualization_label_sr.setFixedWidth(700)
-        layout.addWidget(self.visualization_label_sr)
+        layout.addWidget(self.visualization_label_sr, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
         # 文件路径输入
         file_layout = QHBoxLayout()
@@ -926,7 +926,7 @@ class MainWindow(QMainWindow):
 
         # Label to display calibration result image
         self.calibration_image_label = QLabel("Calibration Result", alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.calibration_image_label)
+        layout.addWidget(self.calibration_image_label, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
         layout.addStretch(1)
         self.stack.addWidget(page)
@@ -958,7 +958,7 @@ class MainWindow(QMainWindow):
         self.visualization_label_class.setFixedHeight(539)
         self.visualization_label_class.setFixedWidth(700)
         self.visualization_label_class.setText("No image loaded")
-        main_layout.addWidget(self.visualization_label_class)
+        main_layout.addWidget(self.visualization_label_class, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
         # --------- 下部操作面板与 NDVI 显示窗口 ---------
         lower_layout = QHBoxLayout()
