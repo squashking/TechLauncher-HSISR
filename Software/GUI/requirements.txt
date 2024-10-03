@@ -7,3 +7,4 @@ torch
 torchnet
 einops
 timm
+scikit-image
