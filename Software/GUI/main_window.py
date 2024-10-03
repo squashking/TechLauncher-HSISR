@@ -471,9 +471,13 @@ class MainWindow(QMainWindow):
 
         # Mode selection and visualization controls
         self.mode = "RGB"
-        
+
         # Sidebar buttons
         sidebar_buttons = ["Visualization", "Super-resolution", "Calibration", "Classification"]
+        self.sidebar_button_index = dict()
+        for i, button_text in enumerate(sidebar_buttons):
+            self.sidebar_button_index[button_text] = i
+        self.sidebar_buttons = sidebar_buttons
         for i, button_text in enumerate(sidebar_buttons):
             btn = QPushButton(button_text)
             btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
@@ -495,7 +499,12 @@ class MainWindow(QMainWindow):
             btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             left_layout.addWidget(btn)
             btn.clicked.connect(lambda checked, text=button_text: self.change_page(text))
-        
+
+        # tab states
+        self.tab_state = dict()
+        for button_text in self.sidebar_buttons:
+            self.tab_state[button_text] = 0
+
         # This will make the buttons fill the available space
         for i in range(len(sidebar_buttons)):
             left_layout.setStretch(i, 1)
@@ -563,7 +572,7 @@ class MainWindow(QMainWindow):
         save_path = "img/temp_rgb.png"
         show_rgb(self.hsi, save_path)
         pixmap = QPixmap(save_path)
-        
+
         # make the path auto displayed
         if not pixmap.isNull():
             self.loaded_image = pixmap
@@ -574,9 +583,16 @@ class MainWindow(QMainWindow):
         else:
             print("Failed to load QPixmap from the generated RGB image.")
             return
-        
+
+        # Update tab states
+        for button_text in self.tab_state:
+            self.tab_state[button_text] = 1
+
         # Call to update the visualization tab
         self.update_visualization_tab()
+        self.update_super_resolution_tab()
+        self.update_calibration_tab()
+        self.update_classification_tab()
 
     def save_image(self):
         """Save the currently visualized image."""
@@ -619,6 +635,8 @@ class MainWindow(QMainWindow):
             self.visualization_label.setScaledContents(True)
         except Exception as e:
             self.visualization_label.setText(f"Error visualizing {mode}: {str(e)}")
+
+        self.tab_state["Visualization"] = 2
 
     def create_visualization_page(self):
         page = QWidget()
@@ -768,6 +786,8 @@ class MainWindow(QMainWindow):
         self.visualization_label_sr.setFixedWidth(700)
         layout.addWidget(self.visualization_label_sr, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
+        layout.addStretch(1)
+
         # 文件路径输入
         file_layout = QHBoxLayout()
         self.super_resolution_file_label = QLabel("File path: No image loaded")
@@ -799,7 +819,6 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
-        layout.addStretch(1)
         self.stack.addWidget(page)
         
     def run_calibration(self):
@@ -808,22 +827,30 @@ class MainWindow(QMainWindow):
             self.calibration_file_label.setText(f"File path: {self.image_path}")
         else:
             self.calibration_file_label.setText("File path: No image loaded")
-        """Run the calibration process based on user input and display the result."""
-        dark_hdr = self.calibration_input_mapping["dark_hdr"].text()
-        dark_bil = self.calibration_input_mapping["dark_bil"].text()
-        ref_hdr = self.calibration_input_mapping["ref_hdr"].text()
-        ref_bil = self.calibration_input_mapping["ref_bil"].text()
-        input_hdr = self.calibration_input_mapping["input_hdr"].text()
-        input_bil = self.calibration_input_mapping["input_bil"].text()
-        output_filename = self.calibration_input_mapping["output_filename"].text()
-        if len(output_filename) == 0:
-            output_filename = None
-        threshold = int(self.threshold_input.text())
-
-        if not all([dark_hdr, dark_bil, ref_hdr, ref_bil, input_hdr, input_bil]):
-            print("Error: Please provide all file paths")
-            self.calibration_image_label.setText("Error: Missing file paths\nOutput file is optional")
+            self.calibration_image_label.setText("File path: No image loaded")
             return
+
+        dark_filename = self.calibration_input_mapping["dark_file"].text()
+        ref_filename = self.calibration_input_mapping["ref_file"].text()
+        output_filename = None
+
+        for filename in [dark_filename, ref_filename]:
+            if filename is None:
+                print("Error: Missing file paths")
+                self.calibration_image_label.setText("Error: Missing file paths")
+                return
+
+        input_bil = self.image_path
+        input_hdr = ".".join(self.image_path.split(".")[: -1] + ["hdr"])
+
+        dark_hdr = f"{dark_filename}.hdr"
+        dark_bil = f"{dark_filename}.bil"
+        ref_hdr = f"{ref_filename}.hdr"
+        ref_bil = f"{ref_filename}.bil"
+        for fname in [dark_hdr, dark_bil, ref_hdr, ref_bil, input_hdr, input_bil]:
+            if not os.path.exists(fname):
+                print(f"Error: {fname} not found")
+                self.calibration_image_label.setText("Error: {fname} not found")
 
         try:
             dark_hsi = load_hsi(dark_bil, dark_hdr)
@@ -835,7 +862,7 @@ class MainWindow(QMainWindow):
 
         try:
             # Call calibration function in Functions module
-            result_hsi = calibration(dark_hsi, ref_hsi, input_hsi, output_filename, threshold)
+            result_hsi = calibration(dark_hsi, ref_hsi, input_hsi, output_filename)
 
             # Load the result
             result_image_path = "calibration.png" if output_filename is None else (output_filename + ".png")
@@ -861,39 +888,48 @@ class MainWindow(QMainWindow):
             print(f"Calibration error")
             self.calibration_image_label.setText(f"Calibration error")
 
+        self.tab_state["Calibration"] = 2
+
     def create_calibration_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
 
+        # Label to display calibration result image
+        self.calibration_image_label = QLabel("Calibration Result", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.calibration_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.calibration_image_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
+        self.calibration_image_label.setFixedWidth(700)
+        layout.addWidget(self.calibration_image_label, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
+
+        layout.addStretch(1)
+
         # File path label (same layout as Super-resolution tab)
         file_layout = QHBoxLayout()
         self.calibration_file_label = QLabel("File path: No image loaded")
+
         file_layout.addWidget(self.calibration_file_label)
         layout.addLayout(file_layout)
 
         calibration_display_text_mapping = {
-            "dark_hdr": "Dark File HDR",
-            "dark_bil": "Dark File BIL",
-            "ref_hdr": "Reference File HDR",
-            "ref_bil": "Reference File BIL",
-            "input_hdr": "Input File HDR",
-            "input_bil": "Input File BIL",
-            "output_filename": "Output File",
+            "dark_file": "Dark File",
+            "ref_file": "Reference File",
         }
         calibration_file_types = calibration_display_text_mapping.keys()
         calibration_default_input = {
-            "dark_hdr": "dark.hdr",
-            "dark_bil": "dark.bil",
-            "ref_hdr": "ref.hdr",
-            "ref_bil": "ref.bil",
-            "input_hdr": "input.hdr",
-            "input_bil": "input.bil",
+            "dark_file": "dark",
+            "ref_file": "ref",
         }
         self.calibration_input_mapping = dict()
 
+        def calibration_browse_file(line_edit):
+            file_path, _ = QFileDialog.getOpenFileName(self, "Open File", None, "Header Files (*.hdr);;BIL Files (*.bil)")
+            if file_path:
+                file_path = ".".join(file_path.split(".")[: -1])
+                line_edit.setText(file_path)
+
         def connect_fn_generator(file_type):
             ft = copy.copy(file_type)
-            return lambda: self.browse_file(self.calibration_input_mapping[ft])
+            return lambda: calibration_browse_file(self.calibration_input_mapping[ft])
 
         for file_type in calibration_file_types:
             current_layout = QHBoxLayout()
@@ -909,26 +945,13 @@ class MainWindow(QMainWindow):
 
             layout.addLayout(current_layout)
 
-        # Calibration threshold input
-        threshold_layout = QHBoxLayout()
-        threshold_label = QLabel("Threshold:")
-        self.threshold_input = QLineEdit("5")  # Default value
-        threshold_layout.addWidget(threshold_label)
-        threshold_layout.addWidget(self.threshold_input)
-
         # Calibrate button
         calibrate_button = QPushButton("Calibrate")
         calibrate_button.clicked.connect(self.run_calibration)
 
         # Layout organization
-        layout.addLayout(threshold_layout)
         layout.addWidget(calibrate_button)
 
-        # Label to display calibration result image
-        self.calibration_image_label = QLabel("Calibration Result", alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.calibration_image_label, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
-
-        layout.addStretch(1)
         self.stack.addWidget(page)
 
 
@@ -1170,32 +1193,47 @@ class MainWindow(QMainWindow):
 
     def update_visualization_tab(self):
         """Update the visualization tab with the loaded RGB image from the .bil file."""
-        if self.loaded_image:  # If an image was loaded
+        state = self.tab_state["Visualization"]
+        if state == 0:
+            self.visualization_file_label.setText("File path: No image loaded")
+            self.visualization_label.setText("No image loaded")
+        elif state == 1:
             self.visualization_file_label.setText(f"File path: {self.image_path}")
             self.visualization_label.setPixmap(self.loaded_image)
             self.visualization_label.setScaledContents(True)
+        elif state == 2:
+            pass
         else:
-            self.visualization_file_label.setText("File path: No image loaded")
-            self.visualization_label.setText("No image loaded")
-
+            assert False
 
     def update_super_resolution_tab(self):
-        if self.loaded_image:  # If an image was loaded
-            self.super_resolution_file_label.setText(f"File path: {self.image_path} ")
+        state = self.tab_state["Super-resolution"]
+        if state == 0:
+            self.super_resolution_file_label.setText("File path: No image loaded")
+            self.visualization_label_sr.setText("No image loaded")
+        elif state == 1:
             self.super_resolution_file_label.setText(f"File path: {self.image_path}")
             self.show_resolution_image("low")
             self.radio_low_res.setChecked(True)
+        elif state == 2:
+            pass
         else:
-            self.super_resolution_file_label.setText("File path: No image loaded")
-            self.visualization_label_sr.setText("No image loaded")
+            assert False
             
     def update_calibration_tab(self):
         """Update the calibration tab with the loaded image path."""
-        if self.image_path:  # If an image was loaded
-            self.calibration_file_label.setText(f"File path: {self.image_path}")
-        else:
+        state = self.tab_state["Calibration"]
+        if state == 0:
             self.calibration_file_label.setText("File path: No image loaded")
-
+            self.calibration_image_label.setText("No image loaded")
+        elif state == 1:
+            self.calibration_file_label.setText(f"File path: {self.image_path}")
+            self.calibration_image_label.setPixmap(self.loaded_image)
+            self.calibration_image_label.setScaledContents(True)
+        elif state == 2:
+            pass
+        else:
+            assert False
 
     def update_classification_tab(self):
         if self.loaded_image:  # If an image was loaded
