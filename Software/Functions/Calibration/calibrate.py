@@ -5,7 +5,7 @@ import numpy as np
 import spectral.io.envi as envi
 
 
-def calibration(dark_hsi, ref_hsi, input_hsi, output_filename, threshold):
+def calibration(dark_hsi, ref_hsi, input_hsi, output_filename):
 
     assert dark_hsi.shape == ref_hsi.shape
 
@@ -19,14 +19,11 @@ def calibration(dark_hsi, ref_hsi, input_hsi, output_filename, threshold):
         input_hsi.shape[0],
         axis=0
     )
-    #print("div shape", divisor.shape)
-    #print("sub shape", subt.shape)
-    #print("input shape", input_hsi.shape)
 
     result = np.clip(
-        ((input_hsi[:, :, :] - subt) / divisor) * 256,
+        ((input_hsi[:, :, :] - subt) / divisor) * 255,
         0,
-        256
+        255
     )
 
     if output_filename is None:
