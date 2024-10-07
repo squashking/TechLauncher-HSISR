@@ -1201,7 +1201,6 @@ class MainWindow(QMainWindow):
             self.visualization_file_label.setText(f"File path: {self.image_path}")
             self.visualization_label.setPixmap(self.loaded_image)
             self.visualization_label.setScaledContents(True)
-            self.radio_rgb.setChecked(True)
         elif state == 2:
             pass
         else:
