@@ -465,7 +465,6 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(left_frame)
         main_layout.addLayout(right_layout)
 
-        # Clickable image label (after defining main_layout)
         # self.image_label = ClickableImage(self)  # Using the custom ClickableImage class
         # right_layout.addWidget(self.image_label)  # Add it to right_layout instead of main_layout
 
@@ -474,7 +473,6 @@ class MainWindow(QMainWindow):
 
         # Sidebar buttons
         sidebar_buttons = ["Visualization", "Super-resolution", "Calibration", "Classification"]
-        self.current_tab = "Visualization"  # init tab
         self.sidebar_button_index = dict()
         for i, button_text in enumerate(sidebar_buttons):
             self.sidebar_button_index[button_text] = i
@@ -506,13 +504,6 @@ class MainWindow(QMainWindow):
         for button_text in self.sidebar_buttons:
             self.tab_state[button_text] = 0
 
-        # HSI and image to save
-        self.output_sr_hsi = None
-        self.output_calibration_hsi = None
-        self.vis_viewer_image = None
-        self.sr_viewer_image = None
-        self.calibration_viewer_image = None
-
         # This will make the buttons fill the available space
         for i in range(len(sidebar_buttons)):
             left_layout.setStretch(i, 1)
@@ -535,22 +526,13 @@ class MainWindow(QMainWindow):
         # File menu
         file_menu = menu_bar.addMenu("File")
 
-        load_action = QAction("Load Hyperspectral Image", self)
+        load_action = QAction("Load Image", self)
         load_action.triggered.connect(self.load_image)
         file_menu.addAction(load_action)
-        load_action.setDisabled(False)
 
-        save_hyperspectral_image_action = QAction("Save Hyperspectral Image", self)
-        save_hyperspectral_image_action.triggered.connect(self.save_hyperspectral_image)
-        file_menu.addAction(save_hyperspectral_image_action)
-        save_hyperspectral_image_action.setDisabled(True)
-        self.save_hyperspectral_image_action = save_hyperspectral_image_action
-
-        save_viewer_image_action = QAction("Save Viewer Image", self)
-        save_viewer_image_action.triggered.connect(self.save_viewer_image)
-        file_menu.addAction(save_viewer_image_action)
-        save_viewer_image_action.setDisabled(True)
-        self.save_viewer_image_action = save_viewer_image_action
+        save_action = QAction("Save Image", self)
+        save_action.triggered.connect(self.save_image)
+        file_menu.addAction(save_action)
 
         # About menu
         about_menu = menu_bar.addMenu("About")
@@ -597,10 +579,6 @@ class MainWindow(QMainWindow):
             
             # Update the file path label here immediately
             self.visualization_file_label.setText(f"File path: {self.image_path}")
-
-            self.vis_viewer_image = pixmap
-            self.sr_viewer_image = pixmap
-            self.calibration_viewer_image = pixmap
         else:
             print("Failed to load QPixmap from the generated RGB image.")
             return
@@ -609,56 +587,24 @@ class MainWindow(QMainWindow):
         for button_text in self.tab_state:
             self.tab_state[button_text] = 1
 
-        # Clear cached hsi
-        self.output_sr_hsi = self.hsi
-        self.output_calibration_hsi = self.hsi
-
         # Call to update the visualization tab
         self.update_visualization_tab()
         self.update_super_resolution_tab()
         self.update_calibration_tab()
         self.update_classification_tab()
 
-    def save_hyperspectral_image(self):
-        """Save the currently visualized image."""
-        if self.loaded_image is not None:
-            # Open a file dialog to choose the save location
-            file_dialog = QFileDialog()
-            save_path, _ = file_dialog.getSaveFileName(self, "Save Hyperspectral Image", "", "HDR Image (*.hdr);;BIL Image (*.bil)")
-            save_hdr = save_path + ".hdr"
-            save_bil = save_path + ".bil"
-            if save_path:
-                if self.current_tab == "Visualization":
-                    envi.save_image(save_hdr, self.hsi, dtype=np.uint16, interleave="bil", ext="bil", force=True, metadata=self.hsi.metadata)
-                elif self.current_tab == "Super-resolution":
-                    envi.save_image(save_hdr, self.output_sr_hsi, dtype=np.uint16, interleave="bil", ext="bil", force=True, metadata=self.output_sr_hsi.metadata)
-                elif self.current_tab == "Calibration":
-                    envi.save_image(save_hdr, self.output_calibration_hsi, dtype=np.uint16, interleave="bil", ext="bil", force=True, metadata=self.output_calibration_hsi.metadata)
-                else:
-                    assert False
-                print(f"Image saved to {save_path}")
-        else:
-            print("No image to save.")
-
-    def save_viewer_image(self):
+    def save_image(self):
         """Save the currently visualized image."""
         if self.loaded_image is not None:
             # Open a file dialog to choose the save location
             file_dialog = QFileDialog()
             save_path, _ = file_dialog.getSaveFileName(self, "Save Image", "", "PNG Image (*.png);;JPEG Image (*.jpg)")
             if save_path:
-                if self.current_tab == "Visualization":
-                    self.vis_viewer_image.save(save_path, "png")
-                elif self.current_tab == "Super-resolution":
-                    self.sr_viewer_image.save(save_path, "png")
-                elif self.current_tab == "Calibration":
-                    self.calibration_viewer_image.save(save_path, "png")
-                else:
-                    assert False
+                self.loaded_image.save(save_path)  # Save the image
                 print(f"Image saved to {save_path}")
         else:
-            print("No image to save.")           
-
+            print("No image to save.")
+            
     def visualize_selected_mode(self,mode):
         # Create a dictionary mapping modes to their corresponding functions and output file names
         mode_mapping = {
@@ -686,7 +632,6 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap(save_path)
             self.visualization_label.setPixmap(pixmap)
             self.visualization_label.setScaledContents(True)
-            self.vis_viewer_image = pixmap
         except Exception as e:
             self.visualization_label.setText(f"Error visualizing {mode}: {str(e)}")
 
@@ -696,12 +641,15 @@ class MainWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
 
-        # Visualization image label (takes up most of the space)
+        # Visualization image label
         self.visualization_label = ClickableImage(self)
-        self.visualization_label.setText("Visualization Content")
-        self.visualization_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
+        self.visualization_label.setText("APPN-Tech") 
+        self.visualization_label.setFixedHeight(539)
         self.visualization_label.setFixedWidth(700)
+        self.visualization_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.visualization_label.setStyleSheet("font-size: 36px; font-weight: bold; color: grey;")  
         layout.addWidget(self.visualization_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
 
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
@@ -766,7 +714,6 @@ class MainWindow(QMainWindow):
                     pixmap = QPixmap(save_path)
                     self.visualization_label_sr.setPixmap(pixmap)
                     self.visualization_label_sr.setScaledContents(True)
-                    self.sr_viewer_image = pixmap
                 except Exception as e:
                     self.visualization_label_sr.setText(f"显示{resolution}分辨率图像时出错：{str(e)}")
             else:
@@ -783,7 +730,6 @@ class MainWindow(QMainWindow):
                     pixmap = QPixmap(save_path)
                     self.visualization_label_sr.setPixmap(pixmap)
                     self.visualization_label_sr.setScaledContents(True)
-                    self.sr_viewer_image = pixmap
                 except Exception as e:
                     self.visualization_label_sr.setText(f"显示{resolution}分辨率图像时出错：{str(e)}")
 
@@ -935,7 +881,6 @@ class MainWindow(QMainWindow):
             # Update the label to display the calibration result
             self.calibration_image_label.setPixmap(pixmap)
             self.calibration_image_label.setScaledContents(True)
-            self.calibration_viewer_image = pixmap
 
             # Remove temporary files
             if output_filename is None:
@@ -1254,18 +1199,13 @@ class MainWindow(QMainWindow):
         if state == 0:
             self.visualization_file_label.setText("File path: No image loaded")
             self.visualization_label.setText("No image loaded")
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
         elif state == 1:
             self.visualization_file_label.setText(f"File path: {self.image_path}")
             self.visualization_label.setPixmap(self.loaded_image)
             self.visualization_label.setScaledContents(True)
             self.radio_rgb.setChecked(True)
-            self.save_hyperspectral_image_action.setDisabled(False)
-            self.save_viewer_image_action.setDisabled(False)
         elif state == 2:
-            self.save_hyperspectral_image_action.setDisabled(False)
-            self.save_viewer_image_action.setDisabled(False)
+            pass
         else:
             assert False
 
@@ -1274,17 +1214,12 @@ class MainWindow(QMainWindow):
         if state == 0:
             self.super_resolution_file_label.setText("File path: No image loaded")
             self.visualization_label_sr.setText("No image loaded")
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
         elif state == 1:
             self.super_resolution_file_label.setText(f"File path: {self.image_path}")
             self.show_resolution_image("low")
             self.radio_low_res.setChecked(True)
-            self.save_hyperspectral_image_action.setDisabled(False)
-            self.save_viewer_image_action.setDisabled(False)
         elif state == 2:
-            self.save_hyperspectral_image_action.setDisabled(False)
-            self.save_viewer_image_action.setDisabled(False)
+            pass
         else:
             assert False
             
@@ -1294,17 +1229,12 @@ class MainWindow(QMainWindow):
         if state == 0:
             self.calibration_file_label.setText("File path: No image loaded")
             self.calibration_image_label.setText("No image loaded")
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
         elif state == 1:
             self.calibration_file_label.setText(f"File path: {self.image_path}")
             self.calibration_image_label.setPixmap(self.loaded_image)
             self.calibration_image_label.setScaledContents(True)
-            self.save_hyperspectral_image_action.setDisabled(False)
-            self.save_viewer_image_action.setDisabled(False)
         elif state == 2:
-            self.save_hyperspectral_image_action.setDisabled(False)
-            self.save_viewer_image_action.setDisabled(False)
+            pass
         else:
             assert False
 
@@ -1313,19 +1243,14 @@ class MainWindow(QMainWindow):
             self.classification_inputfile_label.setText(f"File path: {self.image_path} ")
             self.visualization_label_class.setPixmap(self.loaded_image)
             self.visualization_label_class.setScaledContents(True)
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
         else:
             self.classification_inputfile_label.setText("File path: No image loaded")
             self.visualization_label_class.setText("No image loaded")
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
 
     def change_page(self, button_text):
         """Switch between pages and update the visualization tab if necessary."""
         index = ["Visualization", "Super-resolution", "Calibration", "Classification"].index(button_text)
         self.stack.setCurrentIndex(index)
-        self.current_tab = button_text
 
         if button_text == "Visualization":
             self.update_visualization_tab()
