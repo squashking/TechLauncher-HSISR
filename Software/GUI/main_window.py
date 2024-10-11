@@ -642,12 +642,15 @@ class MainWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
 
-        # Visualization image label (takes up most of the space)
+        # Visualization image label
         self.visualization_label = ClickableImage(self)
-        self.visualization_label.setText("Visualization Content")
-        self.visualization_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
+        self.visualization_label.setText("APPN-Tech") 
+        self.visualization_label.setFixedHeight(539)
         self.visualization_label.setFixedWidth(700)
+        self.visualization_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.visualization_label.setStyleSheet("font-size: 36px; font-weight: bold; color: grey;")  
         layout.addWidget(self.visualization_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
 
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
