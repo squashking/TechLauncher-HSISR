@@ -2,10 +2,10 @@ import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QPushButton, QStackedWidget, QRadioButton, QLabel,
-                             QLineEdit, QHBoxLayout, QProgressBar, QGroupBox,QMenu,
+                             QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, QMenu,
                              QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
-from PyQt6.QtCore import Qt, QThread, pyqtSignal,QTimer
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent, QRect
 
 import matplotlib.pyplot as plt
 import shutil
@@ -421,9 +421,6 @@ class ClassificationImageLabel(QLabel):
             self.ndvi_display.setText("Error computing NDVI")
 
 
-
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -500,6 +497,9 @@ class MainWindow(QMainWindow):
             btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             left_layout.addWidget(btn)
             btn.clicked.connect(lambda checked, text=button_text: self.change_page(text))
+
+        # Register Resize Handler
+        self.installEventFilter(self)
 
         # tab states
         self.tab_state = dict()
@@ -592,15 +592,15 @@ class MainWindow(QMainWindow):
 
         # make the path auto displayed
         if not pixmap.isNull():
-            self.loaded_image = pixmap
+            self.loaded_image = self.get_scaled_pixmap(pixmap)
             print("QPixmap successfully loaded.")
             
             # Update the file path label here immediately
             self.visualization_file_label.setText(f"File path: {self.image_path}")
 
-            self.vis_viewer_image = pixmap
-            self.sr_viewer_image = pixmap
-            self.calibration_viewer_image = pixmap
+            self.vis_viewer_image = self.get_scaled_pixmap(pixmap)
+            self.sr_viewer_image = self.get_scaled_pixmap(pixmap)
+            self.calibration_viewer_image = self.get_scaled_pixmap(pixmap)
         else:
             print("Failed to load QPixmap from the generated RGB image.")
             return
@@ -659,7 +659,38 @@ class MainWindow(QMainWindow):
         else:
             print("No image to save.")           
 
-    def visualize_selected_mode(self,mode):
+    def eventFilter(self, widget, event):
+        if event.type() == QEvent.Type.Resize:
+            #print("QEvent.Resize", self.current_tab, widget, event, self.width(), self.height())
+
+            if self.current_tab == "Visualization":
+                self.update_visualization_tab()
+            elif self.current_tab == "Super-resolution":
+                self.update_super_resolution_tab() 
+            elif self.current_tab == "Calibration":
+                self.update_calibration_tab()
+            elif self.current_tab == "Classification":
+                self.update_classification_tab()
+            else:
+                assert False
+            return True
+        #if (event.type() == QtCore.QEvent.Resize and widget is self.label):
+        #    self.label.setPixmap(self._pixmap.scaled(self.label.width(), self.label.height(), QtCore.Qt.KeepAspectRatio))
+        #    return True
+        return QMainWindow.eventFilter(self, widget, event)
+
+    def get_scaled_pixmap(self, pixmap):
+        #print("scaled", pixmap.scaled(self.width() - 300, self.height() - 310, Qt.AspectRatioMode.KeepAspectRatio))
+        return pixmap.scaled(self.width() - 300, self.height() - 310, Qt.AspectRatioMode.KeepAspectRatio)
+
+    def set_label_scaled_pixmap(self, label, pixmap):
+        #print("set_label_scaled_pixmap", label, pixmap)
+        label.setFixedWidth(self.width() - 300)
+        label.setFixedHeight(self.height() - 310)
+        #label.setGeometry(QRect(label.x(), label.y(), self.width() - 260, self.height() - 310))
+        label.setPixmap(self.get_scaled_pixmap(pixmap))
+
+    def visualize_selected_mode(self, mode):
         # Create a dictionary mapping modes to their corresponding functions and output file names
         mode_mapping = {
             "RGB": ("img/visualization_rgb.png", show_rgb),
@@ -684,9 +715,10 @@ class MainWindow(QMainWindow):
         try:
             visualization_function(self.hsi, save_path)
             pixmap = QPixmap(save_path)
-            self.visualization_label.setPixmap(pixmap)
+            #self.visualization_label.setPixmap(pixmap)
+            self.set_label_scaled_pixmap(self.visualization_label, pixmap)
             self.visualization_label.setScaledContents(True)
-            self.vis_viewer_image = pixmap
+            self.vis_viewer_image = self.get_scaled_pixmap(pixmap)
         except Exception as e:
             self.visualization_label.setText(f"Error visualizing {mode}: {str(e)}")
 
@@ -696,11 +728,14 @@ class MainWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
 
-        # Visualization image label (takes up most of the space)
+        # Visualization image label
         self.visualization_label = ClickableImage(self)
-        self.visualization_label.setText("Visualization Content")
-        self.visualization_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
+        self.visualization_label.setText("APPN-Tech")
+        self.visualization_label.setFixedHeight(539)
         self.visualization_label.setFixedWidth(700)
+        self.visualization_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.visualization_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.visualization_label.setStyleSheet("font-size: 36px; font-weight: bold; color: grey;")
         layout.addWidget(self.visualization_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Add a spacer to push the banner to the bottom
@@ -764,9 +799,11 @@ class MainWindow(QMainWindow):
                 try:
                     show_rgb(self.hsi, save_path)
                     pixmap = QPixmap(save_path)
-                    self.visualization_label_sr.setPixmap(pixmap)
+                    #self.visualization_label_sr.setPixmap(pixmap)
+                    #self.visualization_label_sr.setPixmap(self.get_scaled_pixmap(pixmap))
+                    self.set_label_scaled_pixmap(self.visualization_label_sr, pixmap)
                     self.visualization_label_sr.setScaledContents(True)
-                    self.sr_viewer_image = pixmap
+                    self.sr_viewer_image = self.get_scaled_pixmap(pixmap)
                 except Exception as e:
                     self.visualization_label_sr.setText(f"显示{resolution}分辨率图像时出错：{str(e)}")
             else:
@@ -781,9 +818,11 @@ class MainWindow(QMainWindow):
                 try:
                     show_rgb(high_hsi, save_path)
                     pixmap = QPixmap(save_path)
-                    self.visualization_label_sr.setPixmap(pixmap)
+                    #self.visualization_label_sr.setPixmap(pixmap)
+                    #self.visualization_label_sr.setPixmap(self.get_scaled_pixmap(pixmap))
+                    self.set_label_scaled_pixmap(self.visualization_label_sr, pixmap)
                     self.visualization_label_sr.setScaledContents(True)
-                    self.sr_viewer_image = pixmap
+                    self.sr_viewer_image = self.get_scaled_pixmap(pixmap)
                 except Exception as e:
                     self.visualization_label_sr.setText(f"显示{resolution}分辨率图像时出错：{str(e)}")
 
@@ -840,6 +879,7 @@ class MainWindow(QMainWindow):
         self.visualization_label_sr.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.visualization_label_sr.setFixedHeight(539)  # Set an appropriate height or let it scale with content
         self.visualization_label_sr.setFixedWidth(700)
+        self.visualization_label_sr.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout.addWidget(self.visualization_label_sr, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
         layout.addStretch(1)
@@ -933,9 +973,11 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap(result_image_path)
 
             # Update the label to display the calibration result
-            self.calibration_image_label.setPixmap(pixmap)
+            #self.calibration_image_label.setPixmap(pixmap)
+            #self.calibration_image_label.setPixmap(self.get_scaled_pixmap(pixmap))
+            self.set_label_scaled_pixmap(self.calibration_image_label, pixmap)
             self.calibration_image_label.setScaledContents(True)
-            self.calibration_viewer_image = pixmap
+            self.calibration_viewer_image = self.get_scaled_pixmap(pixmap)
 
             # Remove temporary files
             if output_filename is None:
@@ -956,6 +998,7 @@ class MainWindow(QMainWindow):
         self.calibration_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.calibration_image_label.setFixedHeight(539)  # Set an appropriate height or let it scale with content
         self.calibration_image_label.setFixedWidth(700)
+        self.calibration_image_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout.addWidget(self.calibration_image_label, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
         layout.addStretch(1)
@@ -1037,6 +1080,7 @@ class MainWindow(QMainWindow):
         self.visualization_label_class.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.visualization_label_class.setFixedHeight(539)
         self.visualization_label_class.setFixedWidth(700)
+        self.visualization_label_class.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.visualization_label_class.setText("No image loaded")
         main_layout.addWidget(self.visualization_label_class, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
 
@@ -1180,7 +1224,9 @@ class MainWindow(QMainWindow):
         self.visualization_label_class.original_pixmap = pixmap
 
         # Display the classification result
-        self.visualization_label_class.setPixmap(pixmap)
+        #self.visualization_label_class.setPixmap(pixmap)
+        #self.visualization_label_class.setPixmap(self.get_scaled_pixmap(pixmap))
+        self.set_label_scaled_pixmap(self.visualization_label_class, pixmap)
         self.visualization_label_class.setScaledContents(True)
 
         # Update the progress bar
@@ -1241,12 +1287,13 @@ class MainWindow(QMainWindow):
 
         # Load the classified image as QPixmap
         pixmap = QPixmap(result_image_path)
-        self.visualization_label_class.setPixmap(pixmap)
+        #self.visualization_label_class.setPixmap(pixmap)
+        #self.visualization_label_class.setPixmap(self.get_scaled_pixmap(pixmap))
+        self.set_label_scaled_pixmap(self.visualization_label_class, pixmap)
         self.visualization_label_class.setScaledContents(True)
 
         # Store the loaded image in self.loaded_image for visualization tab
         self.loaded_image = pixmap
-
 
     def update_visualization_tab(self):
         """Update the visualization tab with the loaded RGB image from the .bil file."""
@@ -1258,7 +1305,10 @@ class MainWindow(QMainWindow):
             self.save_viewer_image_action.setDisabled(True)
         elif state == 1:
             self.visualization_file_label.setText(f"File path: {self.image_path}")
-            self.visualization_label.setPixmap(self.loaded_image)
+            pixmap = self.loaded_image
+            #self.visualization_label.setPixmap(pixmap)
+            #self.visualization_label.setPixmap(self.get_scaled_pixmap(pixmap))
+            self.set_label_scaled_pixmap(self.visualization_label, pixmap)
             self.visualization_label.setScaledContents(True)
             self.radio_rgb.setChecked(True)
             self.save_hyperspectral_image_action.setDisabled(False)
@@ -1287,7 +1337,7 @@ class MainWindow(QMainWindow):
             self.save_viewer_image_action.setDisabled(False)
         else:
             assert False
-            
+
     def update_calibration_tab(self):
         """Update the calibration tab with the loaded image path."""
         state = self.tab_state["Calibration"]
@@ -1298,11 +1348,17 @@ class MainWindow(QMainWindow):
             self.save_viewer_image_action.setDisabled(True)
         elif state == 1:
             self.calibration_file_label.setText(f"File path: {self.image_path}")
-            self.calibration_image_label.setPixmap(self.loaded_image)
+            #self.calibration_image_label.setPixmap(self.loaded_image)
+            #self.calibration_image_label.setPixmap(self.get_scaled_pixmap(self.loaded_image))
+            pixmap = self.calibration_viewer_image
+            self.set_label_scaled_pixmap(self.calibration_image_label, pixmap)
             self.calibration_image_label.setScaledContents(True)
             self.save_hyperspectral_image_action.setDisabled(False)
             self.save_viewer_image_action.setDisabled(False)
         elif state == 2:
+            pixmap = self.calibration_viewer_image
+            self.set_label_scaled_pixmap(self.calibration_image_label, pixmap)
+            self.calibration_image_label.setScaledContents(True)
             self.save_hyperspectral_image_action.setDisabled(False)
             self.save_viewer_image_action.setDisabled(False)
         else:
@@ -1311,7 +1367,9 @@ class MainWindow(QMainWindow):
     def update_classification_tab(self):
         if self.loaded_image:  # If an image was loaded
             self.classification_inputfile_label.setText(f"File path: {self.image_path} ")
-            self.visualization_label_class.setPixmap(self.loaded_image)
+            #self.visualization_label_class.setPixmap(self.loaded_image)
+            #self.visualization_label_class.setPixmap(self.get_scaled_pixmap(self.loaded_image))
+            self.set_label_scaled_pixmap(self.visualization_label_class, self.loaded_image)
             self.visualization_label_class.setScaledContents(True)
             self.save_hyperspectral_image_action.setDisabled(True)
             self.save_viewer_image_action.setDisabled(True)
