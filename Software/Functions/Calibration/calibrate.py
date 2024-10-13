@@ -36,8 +36,8 @@ def calibration(dark_hsi, ref_hsi, input_hsi, output_filename):
     envi.save_image(output_hdr, result, dtype=np.uint16, interleave="bil", ext="bil", force=True, metadata=dark_hsi.metadata)
     output_hsi = envi.open(output_hdr, output_bil)
 
-    if output_filename is None:
-        os.remove(output_hdr)
-        os.remove(output_bil)
+    #if output_filename is None:
+    #    os.remove(output_hdr)
+    #    os.remove(output_bil)
 
     return output_hsi
