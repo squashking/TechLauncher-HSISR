@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QT
                              QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, QMenu,
                              QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent, QRect
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent, QRect, QSize
 
 import matplotlib.pyplot as plt
 import shutil
@@ -661,7 +661,7 @@ class MainWindow(QMainWindow):
 
     def eventFilter(self, widget, event):
         if event.type() == QEvent.Type.Resize:
-            #print("QEvent.Resize", self.current_tab, widget, event, self.width(), self.height())
+            print("QEvent.Resize", self.current_tab, widget, event, self.width(), self.height())
 
             if self.current_tab == "Visualization":
                 self.update_visualization_tab()
@@ -681,14 +681,20 @@ class MainWindow(QMainWindow):
 
     def get_scaled_pixmap(self, pixmap):
         #print("scaled", pixmap.scaled(self.width() - 300, self.height() - 310, Qt.AspectRatioMode.KeepAspectRatio))
-        return pixmap.scaled(self.width() - 300, self.height() - 310, Qt.AspectRatioMode.KeepAspectRatio)
+        print("not scaled", pixmap.width(), pixmap.height(), self.width(), self.height())
+        ret = pixmap.scaled(QSize(self.width() - 300, self.height() - 310), aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio)
+        return ret
 
     def set_label_scaled_pixmap(self, label, pixmap):
-        #print("set_label_scaled_pixmap", label, pixmap)
-        label.setFixedWidth(self.width() - 300)
-        label.setFixedHeight(self.height() - 310)
+        print("set_label_scaled_pixmap", label, pixmap.width(), pixmap.height())
+        #label.setFixedWidth(self.width() - 300)
+        #label.setFixedHeight(self.height() - 310)
         #label.setGeometry(QRect(label.x(), label.y(), self.width() - 260, self.height() - 310))
-        label.setPixmap(self.get_scaled_pixmap(pixmap))
+        pixmap = self.get_scaled_pixmap(pixmap)
+        print("set_label_scaled_pixmap", pixmap.width(), pixmap.height())
+        label.setFixedWidth(pixmap.width())
+        label.setFixedHeight(pixmap.height())
+        label.setPixmap(pixmap)
 
     def visualize_selected_mode(self, mode):
         # Create a dictionary mapping modes to their corresponding functions and output file names
