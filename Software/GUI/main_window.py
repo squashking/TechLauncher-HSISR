@@ -768,6 +768,7 @@ class MainWindow(QMainWindow):
         self.radio_pri = QRadioButton("PRI")
         self.radio_cube = QRadioButton("HyperCube")
 
+        # Connect buttons to visualization function
         self.radio_rgb.clicked.connect(lambda: self.visualize_selected_mode("RGB"))
         self.radio_ndvi.clicked.connect(lambda: self.visualize_selected_mode("NDVI"))
         self.radio_evi.clicked.connect(lambda: self.visualize_selected_mode("EVI"))
@@ -795,7 +796,6 @@ class MainWindow(QMainWindow):
 
         # Add the page to the stack
         self.stack.addWidget(page)
-
 
     def show_resolution_image(self, resolution):
         if resolution == "low":

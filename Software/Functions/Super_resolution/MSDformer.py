@@ -1,6 +1,6 @@
 from .common import *
 from einops import rearrange
-from timm.models.layers import DropPath
+from timm.layers import DropPath
 
 class MSDformer(nn.Module):
     def __init__(self, n_subs, n_ovls, n_colors, scale, n_feats, n_DCTM,  conv=default_conv):
