@@ -80,8 +80,17 @@ def main(image_array):
 
 if __name__ == '__main__':
 
-    img = open_image('92AV3C.lan').load()
-    gt = open_image('92AV3GT.GIS').read_band(0)
+    # img = open_image('92AV3C.lan').load()
+    # gt = open_image('92AV3GT.GIS').read_band(0)
+
+    hyperspectral_image = open_image('92AV3C.lan').load()
+    ground_truth = open_image('92AV3GT.GIS').read_band(0)
+    training_classes = create_training_classes(hyperspectral_image, ground_truth)
+    classifier = GaussianClassifier(training_classes)
+    classified_map = classifier.classify_image(hyperspectral_image)
+    masked_result = classified_map * (ground_truth != 0)
+    rgb_result = apply_spy_colormap(masked_result)
+    main(rgb_result)
 
     # Check the properties of the hyperspectral image
     # print(f"Image shape: {img.shape}")
@@ -91,13 +100,14 @@ if __name__ == '__main__':
     # print(f"Ground Truth shape: {gt.shape}")
     # print(f"Ground Truth data range: min={gt.min()}, max={gt.max()}")
     
-    classes = create_training_classes(img, gt)
-    
-    gmlc = GaussianClassifier(classes)
-    
-    clmap = gmlc.classify_image(img)
-    
-    gtresults = clmap * (gt != 0)
-    something = apply_spy_colormap(gtresults)
-    main(something)
+    # classes = create_training_classes(img, gt)
+    #
+    # gmlc = GaussianClassifier(classes)
+    #
+    # clmap = gmlc.classify_image(img)
+    #
+    # gtresults = clmap * (gt != 0)
+    # something = apply_spy_colormap(gtresults)
+    # main(something)
+
 
