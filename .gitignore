@@ -2,3 +2,11 @@
 __pycache__/
 Software/GUI/temp_sr/
 Software/GUI/One_sample/
+Software/GUI/Test/abctest.bil
+Software/GUI/calibration_input/dark.bil
+Software/GUI/calibration_input/input.bil
+Software/GUI/calibration_input/ref.bil
+Software/GUI/result_file/2024-05-02--13-56-25_round-0_cam-1_calibFrame.bil
+Software/GUI/result_file/2024-05-02--13-56-31_round-0_cam-1_calibFrame.bil
+Software/GUI/result_file/2024-05-02--13-58-26_round-0_cam-1_tray-1.bil
+Software/GUI/result_file/result.bil
