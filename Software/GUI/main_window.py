@@ -19,6 +19,9 @@ from skimage.segmentation import find_boundaries
 
 import platform
 
+from Software.Functions.Unsupervised_classification.unsupervised_classification import \
+    preprocess_hsi_with_apriltag_multiscale
+
 if platform.system() == 'Windows':
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Software')))
 else:
@@ -1249,11 +1252,49 @@ class MainWindow(QMainWindow):
 
 
 
+    # def run_unsupervised_classification(self):
+    #     try:
+    #         if self.hsi is None:
+    #             print("No image loaded.")
+    #             self.visualization_label_class.setText("No image loaded.")
+    #             return
+    #
+    #         self.visualization_label_class.setText("Classification in progress...")
+    #         self.unsupervised_progress_bar.setRange(0, 0)  # Indeterminate progress
+    #
+    #         k = self.num_classes_input.value()
+    #         max_iterations = self.max_iterations_input.value()
+    #         hsi_data = self.hsi.load()
+    #         wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
+    #
+    #         # Create and start the worker
+    #         self.unsupervised_worker = UnsupervisedClassificationWorker(
+    #             hsi_data, wavelengths, k, max_iterations
+    #         )
+    #
+    #         # Connect the signals
+    #         self.unsupervised_worker.classification_finished.connect(self.unsupervised_classification_finished)
+    #         self.unsupervised_worker.error_occurred.connect(self.unsupervised_classification_error)
+    #
+    #         self.unsupervised_worker.start()
+    #
+    #     except Exception as e:
+    #         print(f"Error during unsupervised classification: {e}")
+    #         self.visualization_label_class.setText(f"Error: {str(e)}")
+
     def run_unsupervised_classification(self):
         try:
             if self.hsi is None:
                 print("No image loaded.")
                 self.visualization_label_class.setText("No image loaded.")
+                return
+
+            # Preprocess the HSI using the multi-scale Apriltag detection approach.
+            try:
+                self.hsi = preprocess_hsi_with_apriltag_multiscale(self.hsi, self.image_path)
+            except ValueError as ve:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, "Apriltag Detection Error", str(ve))
                 return
 
             self.visualization_label_class.setText("Classification in progress...")
@@ -1264,20 +1305,17 @@ class MainWindow(QMainWindow):
             hsi_data = self.hsi.load()
             wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
 
-            # Create and start the worker
             self.unsupervised_worker = UnsupervisedClassificationWorker(
                 hsi_data, wavelengths, k, max_iterations
             )
-
-            # Connect the signals
             self.unsupervised_worker.classification_finished.connect(self.unsupervised_classification_finished)
             self.unsupervised_worker.error_occurred.connect(self.unsupervised_classification_error)
-
             self.unsupervised_worker.start()
 
         except Exception as e:
             print(f"Error during unsupervised classification: {e}")
             self.visualization_label_class.setText(f"Error: {str(e)}")
+
 
     def run_supervised_classification(self):
         """Load and classify the image, display in classification tab."""
