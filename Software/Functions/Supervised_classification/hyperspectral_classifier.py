@@ -5,11 +5,12 @@ from PIL import Image
 import spectral.io.envi as envi
 import os
 
+
 class HyperspectralClassifier:
     def __init__(self):
         self.hsi = None
         self.gt = None
-    
+
     def load_image(self, image_path, header_path):
         """
         Loads the hyperspectral image and checks if it is in PSI format. 
@@ -18,13 +19,13 @@ class HyperspectralClassifier:
         # Check if it's PSI image format
         with open(header_path, "r") as file:
             first_line = file.readline().strip()
-        
+
         if first_line.startswith("BYTEORDER"):  # PSI format
             dictMeta = self.read_PSI_header(header_path)
             self.create_envi_header(header_path, dictMeta)
 
         self.hsi = envi.open(header_path, image_path)
-    
+
     def read_PSI_header(self, file_path):
         """
         Reads the PSI header and converts it to a dictionary format for easier processing.

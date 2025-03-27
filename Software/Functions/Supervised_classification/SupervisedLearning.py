@@ -84,12 +84,12 @@ if __name__ == '__main__':
     gt = open_image('92AV3GT.GIS').read_band(0)
 
     # Check the properties of the hyperspectral image
-    print(f"Image shape: {img.shape}")
-    print(f"Image data range: min={img.min()}, max={img.max()}")
+    # print(f"Image shape: {img.shape}")
+    # print(f"Image data range: min={img.min()}, max={img.max()}")
 
     # Check the properties of the ground truth image
-    print(f"Ground Truth shape: {gt.shape}")
-    print(f"Ground Truth data range: min={gt.min()}, max={gt.max()}")
+    # print(f"Ground Truth shape: {gt.shape}")
+    # print(f"Ground Truth data range: min={gt.min()}, max={gt.max()}")
     
     classes = create_training_classes(img, gt)
     
