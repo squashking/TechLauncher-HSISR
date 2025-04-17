@@ -1,0 +1,5 @@
+spectral
+pyqt6
+numpy
+matplotlib
+
