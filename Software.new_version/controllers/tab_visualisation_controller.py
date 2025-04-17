@@ -62,9 +62,13 @@ class TabVisualisationController(BaseController):
         self.on_click()
 
     @staticmethod
-    def get_QPixmap(im, cmap : str = None):
+    def get_QPixmap(print_func) -> QPixmap:
         buf = BytesIO()
-        plt.imsave(buf, im, cmap=cmap)
+        # if im is plt:
+        #     plt.savefig(buf, **kwargs)
+        # else:
+        #     plt.imsave(buf, im, **kwargs)
+        print_func(buf)
         buf.seek(0)
         pixmap = QPixmap()
         pixmap.loadFromData(buf.getvalue())
@@ -76,17 +80,17 @@ class TabVisualisationController(BaseController):
             [float(i) for i in self.main_controller.hyperspectral_image.metadata["wavelength"]])  # metadata['wavelength'] is read as string; for CSIRO image, can use self.hsi.bands.centers
         rgb_image = spectral.get_rgb(self.main_controller.hyperspectral_image, tuple_rgb_bands)  # (100, 54, 31)
         rgb_image = (rgb_image * 255).astype(np.uint8)
-        rgb_image = rgb_image.copy()  # Spy don't load it to memory automatically, so must be copie
+        rgb_image = rgb_image.copy()  # Spy don't load it to memory automatically, so must be copied
         self.logger.info(f"RGB Image Shape: {rgb_image.shape}")
 
-        return TabVisualisationController.get_QPixmap(rgb_image)
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, rgb_image))
 
     def get_NDVI(self):
         # From Functions.Visualization.Visualize_HSI.py - show_ndvi
         ndvi_array = Visualize_HSI.calculate_ndvi(self.main_controller.hyperspectral_image)
         ndvi_image = (ndvi_array - np.min(ndvi_array)) / (np.max(ndvi_array) - np.min(ndvi_array))  # Normalize to 0-1
 
-        return TabVisualisationController.get_QPixmap(ndvi_image, cmap="RdYlGn")
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, ndvi_image, cmap="RdYlGn"))
 
     def get_EVI(self):
         # From Functions.Visualization.Visualize_HSI.py - show_evi
@@ -106,7 +110,7 @@ class TabVisualisationController(BaseController):
 
         evi_image = (evi_array - min_val) / range_val
 
-        return TabVisualisationController.get_QPixmap(evi_image, cmap="RdYlGn")
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, evi_image, cmap="RdYlGn"))
 
     def get_MCARI(self):
         # From Functions.Visualization.Visualize_HSI.py - show_mcari
@@ -126,7 +130,7 @@ class TabVisualisationController(BaseController):
 
         mcari_image = (mcari_array - min_val) / range_val
 
-        return TabVisualisationController.get_QPixmap(mcari_image, cmap="viridis")
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, mcari_image, cmap="viridis"))
 
     def get_MTVI(self):
         # From Functions.Visualization.Visualize_HSI.py - show_mtvi
@@ -146,14 +150,14 @@ class TabVisualisationController(BaseController):
 
         mtvi_image = (mtvi_array - min_val) / range_val
 
-        return TabVisualisationController.get_QPixmap(mtvi_image, cmap="viridis")
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf,mtvi_image, cmap="viridis"))
 
     def get_OSAVI(self):
         # From Functions.Visualization.Visualize_HSI.py - show_osavi
         osavi_array = Visualize_HSI.calculate_osavi(self.main_controller.hyperspectral_image)
         osavi_image = (osavi_array - np.min(osavi_array)) / (np.max(osavi_array) - np.min(osavi_array))
 
-        return TabVisualisationController.get_QPixmap(osavi_image, cmap="RdYlGn")
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf,osavi_image, cmap="RdYlGn"))
 
     def get_PRI(self):
         # From Functions.Visualization.Visualize_HSI.py - show_pri
@@ -173,14 +177,58 @@ class TabVisualisationController(BaseController):
 
         pri_image = (pri_array - min_val) / range_val
 
-        return TabVisualisationController.get_QPixmap(pri_image, cmap="Spectral")
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf,pri_image, cmap="Spectral"))
 
     def get_hyper_cube(self):
-        buf = BytesIO()
-        Hypercube.show_cube(self.main_controller.hyperspectral_image, buf)
+        # From Functions.Hypercube_Spectrum.Hypercube.py - show_cube
+        data = self.main_controller.hyperspectral_image
+        assert len(data.shape) == 3
+        self.logger.info(f"Hyperspectral image shape: {data.shape}")
 
-        buf.seek(0)
-        pixmap = QPixmap()
-        pixmap.loadFromData(buf.getvalue())
+        bands = list(Hypercube.find_RGB_bands([float(i) for i in data.metadata["wavelength"]]))
+        r_band, g_band, b_band = bands[0], bands[1], bands[2]
+        r_image = data[:, :, r_band]
+        g_image = data[:, :, g_band]
+        b_image = data[:, :, b_band]
+        r_image[r_image < 0] = 0
+        g_image[g_image < 0] = 0
+        b_image[b_image < 0] = 0
+        r_image_normalized = r_image / np.max(r_image)
+        g_image_normalized = g_image / np.max(g_image)
+        b_image_normalized = b_image / np.max(b_image)
 
-        return pixmap
+        rgb_data = np.dstack((r_image_normalized, g_image_normalized, b_image_normalized))
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111, projection='3d')
+
+        x_dim, y_dim, z_dim = data.shape
+        X, Y = np.meshgrid(np.arange(y_dim), np.arange(x_dim))
+
+        ax.plot_surface(X, Y, np.full((x_dim, y_dim), z_dim),
+                        facecolors=rgb_data, rstride=1, cstride=1, shade=True)
+
+        side1 = Hypercube.normalize_data(data[:, y_dim - 100, :])
+        side2 = Hypercube.normalize_data(data[x_dim - 100, :, :])
+
+        X_side1, Z_side1 = np.meshgrid(np.arange(x_dim), np.arange(z_dim))
+        Y_side2, Z_side2 = np.meshgrid(np.arange(y_dim), np.arange(z_dim))
+
+        side1 = np.squeeze(side1).T
+        side2 = np.squeeze(side2).T
+
+        ax.plot_surface(np.full_like(X_side1, y_dim), X_side1, Z_side1,
+                        facecolors=plt.cm.viridis(side1), rstride=1, cstride=1, shade=True)
+        ax.plot_surface(Y_side2, np.full_like(Y_side2, x_dim), Z_side2,
+                        facecolors=plt.cm.viridis(side2), rstride=1, cstride=1, shade=True)
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Wavelength')
+        ax.set_xlim(0, y_dim)
+        ax.set_ylim(0, x_dim)
+        ax.set_zlim(0, z_dim)
+
+        ax.view_init(elev=30, azim=45)
+        plt.title('Hypercube Visualization')
+
+        return TabVisualisationController.get_QPixmap(lambda buf : plt.savefig(buf, dpi=300, bbox_inches="tight"))

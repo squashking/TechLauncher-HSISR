@@ -5,6 +5,7 @@ import typing
 import numpy as np
 import spectral
 from PySide6.QtWidgets import QFileDialog
+from matplotlib import pyplot as plt
 
 import Functions.Calibration.calibrate
 from Functions.Basic_Functions import Load_HSI
@@ -47,8 +48,8 @@ class TabCalibrationController(BaseController):
         rgb_image = rgb_image.copy()  # Spy don't load it to memory automatically, so must be copie
         self.logger.info(f"RGB Image Shape: {rgb_image.shape}")
 
-        self.tab_view.output_view.set_image(TabVisualisationController.get_QPixmap(rgb_image))
-        self.tab_view.output_view_0.set_image(TabVisualisationController.get_QPixmap(rgb_image))
+        self.tab_view.output_view.set_image(TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, rgb_image)))
+        self.tab_view.output_view_0.set_image(TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, rgb_image)))
 
         self.tab_view.output_only_button.setEnabled(True)
         self.tab_view.input_and_output_button.setEnabled(True)
