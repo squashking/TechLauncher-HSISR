@@ -24,7 +24,6 @@ class TabVisualisationView(QWidget):
         self.mode_view_mapping = dict()
         for mode in self.controller.modes:
             self.mode_view_mapping[mode] = ImageViewer(self.controller.logger)
-            self.mode_view_mapping[mode].enabled_selection(True)
             self.stack.addWidget(self.mode_view_mapping[mode])
         self.stack.setCurrentIndex(0)  # default
 

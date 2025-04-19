@@ -34,3 +34,12 @@ class MainController:
         if MainController._controller:
             return MainController._controller
         raise Exception("MainController not initialized")
+
+    def update_hyperspectral_image(self, hyperspectral_image, hyperspectral_image_path=None):
+        self.hyperspectral_image = hyperspectral_image
+        self.hyperspectral_image_path = hyperspectral_image_path
+
+        # Update views - tab_visualisation, tab_calibration
+        self.tab_widget_controller.tab_visualisation_controller.on_load_file()
+        self.tab_widget_controller.tab_cropping_controller.on_load_file()
+        self.tab_widget_controller.tab_calibration_controller.on_load_file()

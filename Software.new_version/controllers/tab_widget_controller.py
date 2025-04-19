@@ -6,6 +6,7 @@ import typing
 from PySide6.QtWidgets import QTabWidget, QLabel, QScrollArea
 
 from controllers.base_controller import BaseController
+from controllers.tab_cropping_controller import TabCroppingController
 from controllers.tab_visualisation_controller import TabVisualisationController
 from controllers.tab_calibration_controller import TabCalibrationController
 from widgets.log_label import LogScrollArea
@@ -26,6 +27,9 @@ class TabWidgetController(BaseController):
         self.tab_visualisation_controller = TabVisualisationController(logger, main_controller)
         self.tab_widget.addTab(self.tab_visualisation_controller.tab_view, "Visualisation")
 
+        self.tab_cropping_controller = TabCroppingController(logger, main_controller)
+        self.tab_widget.addTab(self.tab_cropping_controller.tab_view, "Cropping")
+
         self.tab_calibration_controller = TabCalibrationController(logger, main_controller)
         self.tab_widget.addTab(self.tab_calibration_controller.tab_view, "Calibration")
 
@@ -36,11 +40,15 @@ class TabWidgetController(BaseController):
             lambda _, event:
                 self.logger.debug(f"tab_view_1 resized to {event.size().width()}x{event.size().height()}"),
             self.tab_visualisation_controller.tab_view.resizeEvent)
-        self.tab_calibration_controller.tab_view.resizeEvent = types.MethodType(
+        self.tab_cropping_controller.tab_view.resizeEvent = types.MethodType(
             lambda _, event:
                 self.logger.debug(f"tab_view_2 resized to {event.size().width()}x{event.size().height()}"),
+            self.tab_cropping_controller.tab_view)
+        self.tab_calibration_controller.tab_view.resizeEvent = types.MethodType(
+            lambda _, event:
+                self.logger.debug(f"tab_view_3 resized to {event.size().width()}x{event.size().height()}"),
             self.tab_calibration_controller.tab_view)
         self.tab_log_label.resizeEvent = types.MethodType(
             lambda _, event:
-                self.logger.debug(f"tab_view_3 resized to {event.size().width()}x{event.size().height()}"),
+                self.logger.debug(f"tab_view_4 resized to {event.size().width()}x{event.size().height()}"),
             self.tab_log_label)

@@ -64,14 +64,14 @@ class MenuController(BaseController):
         self.logger.info(f"Header file located at: {header_path}")
 
         # Load hyperspectral image using spectral library
-        self.main_controller.hyperspectral_image = Load_HSI.load_hsi(
-            self.main_controller.hyperspectral_image_path,
-            header_path)
+        self.main_controller.update_hyperspectral_image(
+            Load_HSI.load_hsi(
+                self.main_controller.hyperspectral_image_path,
+                header_path
+            ),
+            header_path
+        )
         self.logger.info(f"Hyperspectral image loaded successfully from {image_path}")
-
-        # Update views - tab_visualisation, tab_calibration
-        self.main_controller.tab_widget_controller.tab_visualisation_controller.on_load_file()
-        self.main_controller.tab_widget_controller.tab_calibration_controller.on_load_file()
 
     def quit(self):
         self.logger.info("Quitting by menu action")

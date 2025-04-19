@@ -36,9 +36,8 @@ class SelectableImageLabel(QLabel):
         self.setMouseTracking(False)  # Disable by default for efficiency
 
     def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-
         if not self.selection_enabled or not self.image_loaded:
+            super().mousePressEvent(event)
             return
 
         if event.button() == Qt.MouseButton.LeftButton:
@@ -49,10 +48,11 @@ class SelectableImageLabel(QLabel):
             self.press_position = pos
             self.update()
 
-    def mouseMoveEvent(self, event):
-        super().mouseMoveEvent(event)
+        super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event):
         if not self.selection_enabled or not self.image_loaded:
+            super().mouseMoveEvent(event)
             return
 
         if self.selecting:
@@ -72,18 +72,24 @@ class SelectableImageLabel(QLabel):
             self.selection_rect.setBottomRight(bottom_right)
             self.update()
 
-    def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
+        super().mouseMoveEvent(event)
 
+    def mouseReleaseEvent(self, event):
         if not self.selection_enabled or not self.image_loaded:
+            super().mouseReleaseEvent(event)
             return
 
         if event.button() == Qt.MouseButton.LeftButton:
+            if self.press_position.x() == event.pos().x() and self.press_position.y() == event.pos().y():
+                self.selection_rect = QRect()  # Cancel selection if no movement after pressing
+
             self.selecting = False
             self.press_position = None
             self.update()
 
             self.coordinates_label.setVisible(False)
+
+        super().mouseReleaseEvent(event)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -103,9 +109,6 @@ class SelectableImageLabel(QLabel):
         super().setPixmap(pixmap)
 
         self.image_loaded = True
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
 
     def move_coordinates_label(self, offset_x : int, offset_y : int):
         self.coordinates_label_offset_x = offset_x
@@ -139,6 +142,10 @@ class SelectableImageLabel(QLabel):
         self.setPixmap(scaled_pixmap)
         self.resize(scaled_pixmap.size())
 
+    def clear_selection(self):
+        self.selection_rect = QRect()
+        self.update()
+
     def enable_selection(self, enabled : bool = True):
         self.selection_enabled = enabled
 
@@ -158,21 +165,24 @@ class ScrollableImageView(QScrollArea):
         self._widget = widget
 
     def resizeEvent(self, event):
-        super().resizeEvent(event)
-
         self._widget.move_coordinates_label(
             self.horizontalScrollBar().value() + self.viewport().size().width(),
             self.verticalScrollBar().value() + self.viewport().size().height())
+
+        super().resizeEvent(event)
 
     def on_scroll(self):
         self._widget.move_coordinates_label(
             self.horizontalScrollBar().value() + self.viewport().size().width(),
             self.verticalScrollBar().value() + self.viewport().size().height())
 
+    def clear_selection(self):
+        self._widget.clear_selection()
+
 
 class ImageViewer(QWidget):
-    def __init__(self, logger : logging.Logger):
-        super().__init__()
+    def __init__(self, logger : logging.Logger, parent=None):
+        super().__init__(parent)
 
         self.logger = logger
 
@@ -248,6 +258,9 @@ class ImageViewer(QWidget):
         if save_path:
             im.save(save_path, "png")
             self.logger.info(f"Image saved to {save_path}")
+
+    def clear_selection(self):
+        self.image_label.clear_selection()
 
     def enabled_selection(self, enabled=True):
         self.image_label.enable_selection(enabled)

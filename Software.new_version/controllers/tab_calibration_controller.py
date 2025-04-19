@@ -58,9 +58,9 @@ class TabCalibrationController(BaseController):
         self.tab_view.input_file_path.setText(self.main_controller.hyperspectral_image_path)
 
         self.tab_view.input_view.set_image(
-            self.main_controller.tab_widget_controller.tab_visualisation_controller.mode_output["RGB"])
+            self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB())
         self.tab_view.input_view_0.set_image(
-            self.main_controller.tab_widget_controller.tab_visualisation_controller.mode_output["RGB"])
+            self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB())
 
     def on_click_load_file_button(self, mode):
         assert mode in ["dark", "ref"]
@@ -73,7 +73,6 @@ class TabCalibrationController(BaseController):
         if not image_path:
             self.logger.error(f"No {mode} file selected or invalid file.")
             return
-        self.main_controller.hyperspectral_image_path = image_path
         self.logger.info(f"Selected {mode} image file: {image_path}")
 
         # Get corresponding header file
