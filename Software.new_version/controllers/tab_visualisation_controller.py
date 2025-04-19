@@ -58,6 +58,7 @@ class TabVisualisationController(BaseController):
         for mode in self.mode_button_mapping:
             button = self.mode_button_mapping[mode]
             button.setEnabled(True)
+            self.mode_output[mode] = None
         self.tab_view.radio_buttons[0].setChecked(True)
         self.on_click()
 
