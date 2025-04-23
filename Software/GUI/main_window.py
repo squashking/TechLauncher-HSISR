@@ -3,7 +3,7 @@ import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QPushButton, QStackedWidget, QRadioButton, QLabel,
                              QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, QMenu,
-                             QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox)
+                             QFormLayout, QComboBox, QFrame, QSizePolicy, QFileDialog, QMenuBar, QSpinBox, QMessageBox)
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent, QRect, QSize
 
@@ -1225,23 +1225,82 @@ class MainWindow(QMainWindow):
 
 
     def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi, cluster_image_color):
-        # Set cluster_map, ndvi, hsi, and cluster_image_color in the image label
-        self.visualization_label_class.set_cluster_map(cluster_map)
-        self.visualization_label_class.set_ndvi(ndvi)
-        self.visualization_label_class.set_hsi(self.hsi)  # Pass hsi to the image label
-        self.visualization_label_class.set_cluster_image_color(cluster_image_color)
-        self.visualization_label_class.original_pixmap = pixmap
+        """
+        Slot called when the worker finishes:
+        1) Stop the indeterminate progress bar.
+        2) Store cluster_map, ndvi and the raw classification color array.
+        3) Display the full-color classification pixmap.
+        4) Hook clicks to our region-click handler.
+        """
+        # 1) stop the busy bar
+        self.unsupervised_progress_bar.setRange(0, 1)
+        self.unsupervised_progress_bar.setValue(1)
 
-        # Display the classification result
-        #self.visualization_label_class.setPixmap(pixmap)
-        #self.visualization_label_class.setPixmap(self.get_scaled_pixmap(pixmap))
-        self.set_label_scaled_pixmap(self.visualization_label_class, pixmap)
-        self.visualization_label_class.setScaledContents(True)
+        # 2) store everything for later
+        self.cluster_map           = cluster_map            # 2D int array
+        self.ndvi                  = ndvi                   # 2D float array
+        self.class_pixmap         = pixmap                  # QPixmap for full-color result
+        self.class_color_array    = (cluster_image_color[:, :, :3] * 255).astype(np.uint8)
+        #    -> shape (H, W, 3) uint8
 
-        # Update the progress bar
-        self.unsupervised_progress_bar.setRange(0, 100)
-        self.unsupervised_progress_bar.setValue(100)
+        # 3) show the full-color result, at native size
+        self._apply_pixmap_to_label(self.class_pixmap)
 
+        # 4) install the click handler
+        self.visualization_label_class.mousePressEvent = self._region_click_handler
+
+
+    def _region_click_handler(self, event):
+        """
+        On left-click:
+          • Figure out which cluster was clicked.
+          • Compute & display its average NDVI.
+          • Composite a semi-transparent overlay on the full-color map.
+        Ignore all other clicks.
+        """
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+
+        # get click coords in image space
+        pos = event.position()
+        x, y = int(pos.x()), int(pos.y())
+        H, W = self.cluster_map.shape
+
+        # out-of-bounds clicks do nothing
+        if not (0 <= x < W and 0 <= y < H):
+            return
+
+        # 1) find the cluster ID
+        cluster_id = int(self.cluster_map[y, x])
+
+        # 2) compute & display average NDVI
+        avg_val = float(self.ndvi[self.cluster_map == cluster_id].mean())
+        self.ndvi_display.setText(f"Cluster {cluster_id} NDVI: {avg_val:.3f}")
+
+        # 3) build an RGBA array from the original color map
+        rgba = np.zeros((H, W, 4), dtype=np.uint8)
+        rgba[..., :3] = self.class_color_array
+        rgba[..., 3]  = 255  # fully opaque
+
+        # 4) overlay semi-transparent yellow (R=255,G=255,B=0,A=128) on just this cluster
+        mask = (self.cluster_map == cluster_id)
+        rgba[mask, :] = np.array([255, 255,   0, 128], dtype=np.uint8)
+
+        # 5) convert to QPixmap and display
+        qimg = QImage(rgba.data, W, H, 4 * W, QImage.Format.Format_RGBA8888)
+        pix  = QPixmap.fromImage(qimg)
+        self._apply_pixmap_to_label(pix)
+
+
+    def _apply_pixmap_to_label(self, pixmap: QPixmap):
+        """
+        Helper to show pixmap at 1:1 pixel ratio:
+        • resize QLabel to the pixmap size
+        • disable scaling
+        """
+        self.visualization_label_class.setFixedSize(pixmap.size())
+        self.visualization_label_class.setPixmap(pixmap)
+        self.visualization_label_class.setScaledContents(False)
 
 
     def unsupervised_classification_error(self, error_message):
@@ -1252,36 +1311,6 @@ class MainWindow(QMainWindow):
 
 
 
-    # def run_unsupervised_classification(self):
-    #     try:
-    #         if self.hsi is None:
-    #             print("No image loaded.")
-    #             self.visualization_label_class.setText("No image loaded.")
-    #             return
-    #
-    #         self.visualization_label_class.setText("Classification in progress...")
-    #         self.unsupervised_progress_bar.setRange(0, 0)  # Indeterminate progress
-    #
-    #         k = self.num_classes_input.value()
-    #         max_iterations = self.max_iterations_input.value()
-    #         hsi_data = self.hsi.load()
-    #         wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
-    #
-    #         # Create and start the worker
-    #         self.unsupervised_worker = UnsupervisedClassificationWorker(
-    #             hsi_data, wavelengths, k, max_iterations
-    #         )
-    #
-    #         # Connect the signals
-    #         self.unsupervised_worker.classification_finished.connect(self.unsupervised_classification_finished)
-    #         self.unsupervised_worker.error_occurred.connect(self.unsupervised_classification_error)
-    #
-    #         self.unsupervised_worker.start()
-    #
-    #     except Exception as e:
-    #         print(f"Error during unsupervised classification: {e}")
-    #         self.visualization_label_class.setText(f"Error: {str(e)}")
-
     def run_unsupervised_classification(self):
         try:
             if self.hsi is None:
@@ -1289,27 +1318,50 @@ class MainWindow(QMainWindow):
                 self.visualization_label_class.setText("No image loaded.")
                 return
 
-            # Preprocess the HSI using the multi-scale Apriltag detection approach.
+            # ── 1) Extract wavelengths from metadata BEFORE we overwrite self.hsi ──
+            if hasattr(self.hsi, 'metadata') and 'wavelength' in self.hsi.metadata:
+                wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Wavelengths Error",
+                    "Cannot retrieve wavelength metadata from the loaded HSI."
+                )
+                return
+
+            # ── 2) Apply AprilTag‐based mask (this may convert self.hsi → ndarray) ──
             try:
-                self.hsi = preprocess_hsi_with_apriltag_multiscale(self.hsi, self.image_path)
+                self.hsi = preprocess_hsi_with_apriltag_multiscale(
+                    self.hsi, self.image_path
+                )
             except ValueError as ve:
-                from PyQt6.QtWidgets import QMessageBox
                 QMessageBox.warning(self, "Apriltag Detection Error", str(ve))
                 return
 
             self.visualization_label_class.setText("Classification in progress...")
-            self.unsupervised_progress_bar.setRange(0, 0)  # Indeterminate progress
+            self.unsupervised_progress_bar.setRange(0, 0)
 
+            # ── 3) Get k‐means parameters ──
             k = self.num_classes_input.value()
             max_iterations = self.max_iterations_input.value()
-            hsi_data = self.hsi.load()
-            wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
 
+            # ── 4) Prepare hsi_data for the worker ──
+            # If self.hsi still has a .load(), use it; otherwise assume it's already an ndarray
+            if hasattr(self.hsi, 'load'):
+                hsi_data = self.hsi.load()
+            else:
+                hsi_data = self.hsi
+
+            # ── 5) Launch the worker thread ──
             self.unsupervised_worker = UnsupervisedClassificationWorker(
                 hsi_data, wavelengths, k, max_iterations
             )
-            self.unsupervised_worker.classification_finished.connect(self.unsupervised_classification_finished)
-            self.unsupervised_worker.error_occurred.connect(self.unsupervised_classification_error)
+            self.unsupervised_worker.classification_finished.connect(
+                self.unsupervised_classification_finished
+            )
+            self.unsupervised_worker.error_occurred.connect(
+                self.unsupervised_classification_error
+            )
             self.unsupervised_worker.start()
 
         except Exception as e:
