@@ -1,5 +1,7 @@
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QLabel, QTextEdit, QPushButton, QStackedWidget
+from PySide6.QtWidgets import (QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QLabel, 
+                               QLineEdit, QPushButton, QStackedWidget, QGroupBox, 
+                               QFormLayout, QFrame, QCheckBox)
 
 from widgets.image_viewer import ImageViewer
 
@@ -10,92 +12,115 @@ class TabCalibrationView(QWidget):
 
         self.controller = controller
 
-        # Layout for radio buttons
+        # Main layout
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
+        
+        # Create file selection group
+        file_group = QGroupBox("Input Files")
+        file_layout = QFormLayout()
+        
+        # Input file row
+        input_file_layout = QHBoxLayout()
+        self.input_file_path = QLineEdit(str(self.controller.main_controller.hyperspectral_image_path))
+        self.input_file_path.setReadOnly(True)
+        self.run_calibration_button = QPushButton("Calibrate")
+        self.run_calibration_button.setDisabled(True)
+        input_file_layout.addWidget(self.input_file_path)
+        input_file_layout.addWidget(self.run_calibration_button)
+        file_layout.addRow("Hyperspectral Image:", input_file_layout)
+        
+        # Dark file row
+        dark_file_layout = QHBoxLayout()
+        self.dark_file_path = QLineEdit()
+        self.dark_file_path.setReadOnly(True)
+        self.dark_file_button = QPushButton("Browse")
+        dark_file_layout.addWidget(self.dark_file_path)
+        dark_file_layout.addWidget(self.dark_file_button)
+        file_layout.addRow("Dark File:", dark_file_layout)
+        
+        # Reference file row
+        ref_file_layout = QHBoxLayout()
+        self.ref_file_path = QLineEdit()
+        self.ref_file_path.setReadOnly(True)
+        self.ref_file_button = QPushButton("Browse")
+        ref_file_layout.addWidget(self.ref_file_path)
+        ref_file_layout.addWidget(self.ref_file_button)
+        file_layout.addRow("Reference File:", ref_file_layout)
+        
+        # Model file row
+        model_file_layout = QHBoxLayout()
+        self.model_file_path = QLineEdit()
+        self.model_file_path.setReadOnly(True)
+        self.model_file_button = QPushButton("Browse")
+        model_file_layout.addWidget(self.model_file_path)
+        model_file_layout.addWidget(self.model_file_button)
+        file_layout.addRow("Model File:", model_file_layout)
+        
+        # Auto search checkbox and button
+        auto_search_layout = QHBoxLayout()
+        self.auto_search_checkbox = QCheckBox("Auto-search on load")
+        self.auto_search_checkbox.setChecked(True)
+        self.auto_search_button = QPushButton("Search Now")
+        auto_search_layout.addWidget(self.auto_search_checkbox)
+        auto_search_layout.addWidget(self.auto_search_button)
+        auto_search_layout.addStretch()
+        file_layout.addRow("Auto Search:", auto_search_layout)
+        
+        file_group.setLayout(file_layout)
+        main_layout.addWidget(file_group)
+        
+        # View selection radio buttons
+        view_selection_layout = QHBoxLayout()
         self.input_only_button = QRadioButton("Input Only")
         self.output_only_button = QRadioButton("Output Only")
         self.input_and_output_button = QRadioButton("Input and Output")
+        
         self.input_only_button.setChecked(True)
         self.output_only_button.setDisabled(True)
         self.input_and_output_button.setDisabled(True)
-        self.radio_layout = QHBoxLayout()
-        self.radio_layout.addWidget(self.input_only_button)
-        self.radio_layout.addWidget(self.output_only_button)
-        self.radio_layout.addWidget(self.input_and_output_button)
-
-        # Layout for files
-        TITLE_WIDTH = 150
-
-        self.input_file_title = QLabel("Hyperspectral Image:")
-        self.input_file_path = QTextEdit(str(self.controller.main_controller.hyperspectral_image_path))
-        self.run_calibration_button = QPushButton("Calibrate")
-
-        self.run_calibration_button.setDisabled(True)
-        self.input_file_path.setReadOnly(True)
-        self.input_file_title.setFixedWidth(TITLE_WIDTH)
-        font_height = QFontMetrics(self.input_file_title.font()).lineSpacing() + 10
-        self.input_file_path.setFixedHeight(font_height)
-
-        self.input_file_layout = QHBoxLayout()
-        self.input_file_layout.addWidget(self.input_file_title)
-        self.input_file_layout.addWidget(self.input_file_path)
-        self.input_file_layout.addWidget(self.run_calibration_button)
-
-
-        self.dark_file_title = QLabel("Dark File:")
-        self.dark_file_path = QTextEdit()
-        self.dark_file_button = QPushButton("Browse")
-
-        self.dark_file_path.setReadOnly(True)
-        self.dark_file_title.setFixedWidth(TITLE_WIDTH)
-        self.dark_file_title.setFixedHeight(font_height)
-        self.dark_file_path.setFixedHeight(font_height)
-
-        self.dark_file_layout = QHBoxLayout()
-        self.dark_file_layout.addWidget(self.dark_file_title)
-        self.dark_file_layout.addWidget(self.dark_file_path)
-        self.dark_file_layout.addWidget(self.dark_file_button)
-
-
-        self.ref_file_title = QLabel("Reference File:")
-        self.ref_file_path = QTextEdit()
-        self.ref_file_button = QPushButton("Browse")
-
-        self.ref_file_path.setReadOnly(True)
-        self.ref_file_title.setFixedWidth(TITLE_WIDTH)
-        self.ref_file_title.setFixedHeight(font_height)
-        self.ref_file_path.setFixedHeight(font_height)
-
-        self.ref_file_layout = QHBoxLayout()
-        self.ref_file_layout.addWidget(self.ref_file_title)
-        self.ref_file_layout.addWidget(self.ref_file_path)
-        self.ref_file_layout.addWidget(self.ref_file_button)
-
-
-        self.file_layout = QVBoxLayout()
-        self.file_layout.addLayout(self.input_file_layout)
-        self.file_layout.addLayout(self.dark_file_layout)
-        self.file_layout.addLayout(self.ref_file_layout)
-
-
-        # # Create different views and stack the views (only one visible at a time)
+        
+        view_selection_layout.addWidget(self.input_only_button)
+        view_selection_layout.addWidget(self.output_only_button)
+        view_selection_layout.addWidget(self.input_and_output_button)
+        view_selection_layout.addStretch()
+        main_layout.addLayout(view_selection_layout)
+        
+        # Create stacked widget for different views
+        self.stack = QStackedWidget()
+        
+        # Create pages for different views
+        input_page = QWidget()
+        input_layout = QVBoxLayout()
         self.input_view = ImageViewer(self.controller.logger)
+        input_layout.addWidget(self.input_view)
+        input_page.setLayout(input_layout)
+        
+        output_page = QWidget()
+        output_layout = QVBoxLayout()
         self.output_view = ImageViewer(self.controller.logger)
+        output_layout.addWidget(self.output_view)
+        output_page.setLayout(output_layout)
+        
+        combined_page = QWidget()
+        combined_layout = QHBoxLayout()
         self.input_view_0 = ImageViewer(self.controller.logger)
         self.output_view_0 = ImageViewer(self.controller.logger)
-        self.input_and_output_layout = QHBoxLayout()
-        self.input_and_output_layout.addWidget(self.input_view_0)
-        self.input_and_output_layout.addWidget(self.output_view_0)
-        self.input_and_output_container = QWidget()
-        self.input_and_output_container.setLayout(self.input_and_output_layout)
-        self.stack = QStackedWidget()
-        self.stack.addWidget(self.input_view)
-        self.stack.addWidget(self.output_view)
-        self.stack.addWidget(self.input_and_output_container)
-        self.stack.setCurrentIndex(0)  # default
-
-        # Main layout
-        main_layout = QVBoxLayout()
+        
+        combined_layout.addWidget(self.input_view_0)
+        
+        # Add separator line
+        line = QFrame()
+        line.setFrameShape(QFrame.VLine)
+        line.setFrameShadow(QFrame.Sunken)
+        combined_layout.addWidget(line)
+        
+        combined_layout.addWidget(self.output_view_0)
+        combined_page.setLayout(combined_layout)
+        
+        self.stack.addWidget(input_page)
+        self.stack.addWidget(output_page)
+        self.stack.addWidget(combined_page)
+        
         main_layout.addWidget(self.stack)
-        main_layout.addLayout(self.radio_layout)
-        main_layout.addLayout(self.file_layout)
-        self.setLayout(main_layout)
+        self.stack.setCurrentIndex(0)  # default
