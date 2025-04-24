@@ -151,15 +151,36 @@ class TabCalibrationController(BaseController):
     def auto_search_files(self):
         """
         Auto-search for dark and reference files based on the input file path.
-        For files with '_calibFrame' suffix, the earlier timestamp is considered the dark file
-        and the later one is the reference file.
+        Finds calibration files with '_calibFrame' suffix that were created 
+        before the currently loaded file. The earliest timestamp is considered
+        the dark file and the second earliest is the reference file.
         """
         if not self.main_controller.hyperspectral_image_path:
             self.logger.warning("No input file loaded, cannot auto-search for related files")
             return
             
         input_dir = os.path.dirname(self.main_controller.hyperspectral_image_path)
+        current_file = os.path.basename(self.main_controller.hyperspectral_image_path)
         self.logger.info(f"Searching for calibration files in directory: {input_dir}")
+        
+        # Extract timestamp from current file
+        current_timestamp = None
+        timestamp_pattern = r"(\d{4}-\d{2}-\d{2}--\d{2}-\d{2}-\d{2})"
+        match = re.search(timestamp_pattern, current_file)
+        if match:
+            timestamp_str = match.group(1)
+            try:
+                current_timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d--%H-%M-%S")
+                self.logger.info(f"Current file timestamp: {current_timestamp}")
+            except ValueError:
+                self.logger.warning(f"Could not parse timestamp from current file: {current_file}")
+                current_timestamp = None
+        
+        if not current_timestamp:
+            self.logger.warning("Could not extract timestamp from current file")
+            QMessageBox.warning(self.main_window, "Auto-Search Error", 
+                            "Could not extract timestamp from current file. Manual selection required.")
+            return
         
         # Look for files with _calibFrame suffix in the BIL format
         calib_files = []
@@ -170,11 +191,10 @@ class TabCalibrationController(BaseController):
         if len(calib_files) < 2:
             self.logger.warning(f"Found only {len(calib_files)} calibration files, need at least 2")
             QMessageBox.information(self.main_window, "Auto-Search Results", 
-                                  f"Found only {len(calib_files)} calibration files with '_calibFrame' suffix. Need both dark and reference files.")
+                                f"Found only {len(calib_files)} calibration files with '_calibFrame' suffix. Need both dark and reference files.")
             return
         
-        # Extract timestamps from filenames and sort files by timestamp
-        timestamp_pattern = r"(\d{4}-\d{2}-\d{2}--\d{2}-\d{2}-\d{2})"
+        # Extract timestamps from filenames and keep only those before current timestamp
         calib_files_with_time = []
         
         for file_path in calib_files:
@@ -182,29 +202,30 @@ class TabCalibrationController(BaseController):
             match = re.search(timestamp_pattern, filename)
             if match:
                 timestamp_str = match.group(1)
-                # Convert string timestamp to datetime object
                 try:
                     # Format: YYYY-MM-DD--HH-MM-SS
                     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d--%H-%M-%S")
-                    calib_files_with_time.append((file_path, timestamp))
+                    # Only include files with timestamps before the current file
+                    if timestamp < current_timestamp:
+                        calib_files_with_time.append((file_path, timestamp))
                 except ValueError:
                     self.logger.warning(f"Could not parse timestamp from {filename}")
         
-        # Sort by timestamp
-        calib_files_with_time.sort(key=lambda x: x[1])
+        # Sort by timestamp (descending order to get the most recent first)
+        calib_files_with_time.sort(key=lambda x: x[1], reverse=True)
         
         if len(calib_files_with_time) < 2:
-            self.logger.warning("Could not find enough calibration files with valid timestamps")
+            self.logger.warning("Could not find enough calibration files with valid timestamps before current file")
             QMessageBox.information(self.main_window, "Auto-Search Results", 
-                                  "Could not find enough calibration files with valid timestamps.")
+                                "Could not find enough calibration files with valid timestamps before current file.")
             return
         
-        # The earliest is the dark file, the next one is the reference file
-        dark_file = calib_files_with_time[0][0]
-        ref_file = calib_files_with_time[1][0]
+        # The two most recent calibration files before the current file
+        ref_file = calib_files_with_time[0][0]  # Most recent = reference file
+        dark_file = calib_files_with_time[1][0]  # Second most recent = dark file
         
-        self.logger.info(f"Auto-detected dark file (earliest): {dark_file}")
-        self.logger.info(f"Auto-detected reference file (second earliest): {ref_file}")
+        self.logger.info(f"Auto-detected reference file (nearest timestamp): {ref_file}")
+        self.logger.info(f"Auto-detected dark file (second nearest timestamp): {dark_file}")
         
         # Load the files
         if not self.dark_image:
@@ -215,4 +236,4 @@ class TabCalibrationController(BaseController):
         
         # Notify user
         QMessageBox.information(self.main_window, "Auto-Search Results", 
-                              f"Found calibration files:\nDark: {os.path.basename(dark_file)}\nReference: {os.path.basename(ref_file)}")
+                            f"Found calibration files:\nReference (most recent): {os.path.basename(ref_file)}\nDark (second most recent): {os.path.basename(dark_file)}")
