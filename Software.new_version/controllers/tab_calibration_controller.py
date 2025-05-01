@@ -154,6 +154,9 @@ class TabCalibrationController(BaseController):
         Finds calibration files with '_calibFrame' suffix that were created 
         before the currently loaded file. The earliest timestamp is considered
         the dark file and the second earliest is the reference file.
+        
+        If an error occurs during auto-search, previously loaded dark and reference
+        files are cleared to prevent confusion.
         """
         if not self.main_controller.hyperspectral_image_path:
             self.logger.warning("No input file loaded, cannot auto-search for related files")
@@ -162,6 +165,13 @@ class TabCalibrationController(BaseController):
         input_dir = os.path.dirname(self.main_controller.hyperspectral_image_path)
         current_file = os.path.basename(self.main_controller.hyperspectral_image_path)
         self.logger.info(f"Searching for calibration files in directory: {input_dir}")
+        
+        # Reset previous dark and reference files
+        self.dark_image = None
+        self.ref_image = None
+        self.tab_view.dark_file_path.setText("")
+        self.tab_view.ref_file_path.setText("")
+        self.tab_view.run_calibration_button.setEnabled(False)
         
         # Extract timestamp from current file
         current_timestamp = None
@@ -228,11 +238,8 @@ class TabCalibrationController(BaseController):
         self.logger.info(f"Auto-detected dark file (second nearest timestamp): {dark_file}")
         
         # Load the files
-        if not self.dark_image:
-            self._load_file("dark", dark_file)
-            
-        if not self.ref_image:
-            self._load_file("ref", ref_file)
+        self._load_file("dark", dark_file)
+        self._load_file("ref", ref_file)
         
         # Notify user
         QMessageBox.information(self.main_window, "Auto-Search Results", 

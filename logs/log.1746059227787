@@ -1,0 +1,76 @@
+[2025-05-01 10:27:08][DEBUG][main_window.py:21] Window resized to 1200x800
+[2025-05-01 10:27:08][DEBUG][tab_widget_controller.py:41] tab_view_1 resized to 813x520
+[2025-05-01 10:27:08][DEBUG][tab_widget_controller.py:41] tab_view_1 resized to 1171x767
+[2025-05-01 10:27:10][DEBUG][tab_widget_controller.py:49] tab_view_3 resized to 1171x767
+[2025-05-01 10:27:42][DEBUG][tab_widget_controller.py:45] tab_view_2 resized to 1171x767
+[2025-05-01 10:53:19][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-06-51_round-0_cam-1_tray-1.bil
+[2025-05-01 10:53:19][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-06-51_round-0_cam-1_tray-1.hdr
+[2025-05-01 10:53:20][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:53:21][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:53:22][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:53:22][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/2025-04-17
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:174] Current file timestamp: 2025-04-17 13:06:51
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:227] Auto-detected reference file (nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-57_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:228] Auto-detected dark file (second nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-52_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:100] Header dark file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-52_round-0_cam-1_calibFrame.hdr
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:104] dark image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-52_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:100] Header ref file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-57_round-0_cam-1_calibFrame.hdr
+[2025-05-01 10:53:23][INFO][tab_calibration_controller.py:104] ref image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-57_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:53:36][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-06-51_round-0_cam-1_tray-1.bil
+[2025-05-01 10:53:58][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-53-05_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:53:58][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-53-05_round-0_cam-1_calibFrame.hdr
+[2025-05-01 10:53:58][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:53:58][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:53:58][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:53:58][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:53:58][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/2025-04-17
+[2025-05-01 10:53:58][INFO][tab_calibration_controller.py:174] Current file timestamp: 2025-04-17 12:53:05
+[2025-05-01 10:53:58][INFO][tab_calibration_controller.py:227] Auto-detected reference file (nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-49-29_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:53:58][INFO][tab_calibration_controller.py:228] Auto-detected dark file (second nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-49-24_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:54:03][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-53-05_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:54:09][INFO][tab_calibration_controller.py:90] Selected dark image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-02-56_round-0_cam-1_tray-1.bil
+[2025-05-01 10:54:09][INFO][tab_calibration_controller.py:100] Header dark file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-02-56_round-0_cam-1_tray-1.hdr
+[2025-05-01 10:54:09][INFO][tab_calibration_controller.py:104] dark image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-02-56_round-0_cam-1_tray-1.bil
+[2025-05-01 10:54:23][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-55-04_round-0_cam-1_tray-1.bil
+[2025-05-01 10:54:23][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-55-04_round-0_cam-1_tray-1.hdr
+[2025-05-01 10:54:24][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:25][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:25][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:26][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:27][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/2025-04-17
+[2025-05-01 10:54:27][INFO][tab_calibration_controller.py:174] Current file timestamp: 2025-04-17 12:55:04
+[2025-05-01 10:54:27][INFO][tab_calibration_controller.py:227] Auto-detected reference file (nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-53-10_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:54:27][INFO][tab_calibration_controller.py:228] Auto-detected dark file (second nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-53-05_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:54:34][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-55-04_round-0_cam-1_tray-1.bil
+[2025-05-01 10:54:45][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-51-23_round-0_cam-1_tray-1.bil
+[2025-05-01 10:54:45][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-51-23_round-0_cam-1_tray-1.hdr
+[2025-05-01 10:54:46][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:47][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:48][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:48][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:54:49][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/2025-04-17
+[2025-05-01 10:54:49][INFO][tab_calibration_controller.py:174] Current file timestamp: 2025-04-17 12:51:23
+[2025-05-01 10:54:49][INFO][tab_calibration_controller.py:227] Auto-detected reference file (nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-49-29_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:54:49][INFO][tab_calibration_controller.py:228] Auto-detected dark file (second nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-49-24_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:54:55][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--12-51-23_round-0_cam-1_tray-1.bil
+[2025-05-01 10:55:09][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-02-56_round-0_cam-1_tray-1.bil
+[2025-05-01 10:55:09][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-02-56_round-0_cam-1_tray-1.hdr
+[2025-05-01 10:55:10][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:55:11][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:55:12][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:55:13][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (1971, 500, 3)
+[2025-05-01 10:55:13][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/2025-04-17
+[2025-05-01 10:55:13][INFO][tab_calibration_controller.py:174] Current file timestamp: 2025-04-17 13:02:56
+[2025-05-01 10:55:13][INFO][tab_calibration_controller.py:227] Auto-detected reference file (nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-01-02_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:55:13][INFO][tab_calibration_controller.py:228] Auto-detected dark file (second nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-00-56_round-0_cam-1_calibFrame.bil
+[2025-05-01 10:55:43][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-02-56_round-0_cam-1_tray-1.bil
+[2025-05-01 10:55:52][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/data/calibration.bil
+[2025-05-01 10:55:52][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/data/calibration.hdr
+[2025-05-01 10:55:52][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:55:52][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:55:52][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:55:52][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:55:52][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/data
+[2025-05-01 10:55:52][WARNING][tab_calibration_controller.py:180] Could not extract timestamp from current file
+[2025-05-01 10:56:03][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/data/calibration.bil
