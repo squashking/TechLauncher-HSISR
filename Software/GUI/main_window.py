@@ -1,5 +1,3 @@
-import sys
-import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QPushButton, QStackedWidget, QRadioButton, QLabel,
                              QLineEdit, QHBoxLayout, QProgressBar, QGroupBox, QMenu,
@@ -7,6 +5,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QT
 from PyQt6.QtGui import QFont, QPixmap, QAction, QImage
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent, QRect, QSize
 
+import sys
+import os
+
+import cv2
 import matplotlib.pyplot as plt
 import shutil
 import copy
@@ -15,12 +17,8 @@ import threading
 import spectral.io.envi as envi
 from spectral import get_rgb
 import numpy as np
-from skimage.segmentation import find_boundaries
-
 import platform
 
-from Software.Functions.Unsupervised_classification.unsupervised_classification import \
-    preprocess_hsi_with_apriltag_multiscale
 
 if platform.system() == 'Windows':
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Software')))
@@ -34,9 +32,11 @@ from Functions.Super_resolution.Run_Super_Resolution import run_super_resolution
 from Functions.Calibration.calibrate import calibration
 from Functions.Hypercube_Spectrum.Hypercube import show_cube
 from unsupervised_worker import UnsupervisedClassificationWorker
-from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
 from Functions.Hypercube_Spectrum.Spectrum_plot import plot_spectrum
 from Functions.Supervised_classification.hyperspectral_classifier import HyperspectralClassifier
+from Functions.Unsupervised_classification.unsupervised_classification import preprocess_hsi_with_apriltag_multiscale
+
+
 
 class ClickableImage(QLabel):
     def __init__(self, parent=None):
@@ -137,32 +137,21 @@ class ClassificationImageLabel(QLabel):
         self.update_display()
 
     def show_context_menu(self, position):
+        """
+        右键菜单：仅保留光谱绘制和保存图像功能。
+        """
         context_menu = QMenu(self)
 
-        # 添加显示方案的子菜单
-        visualization_menu = QMenu("Visualization Method", self)
-        method_names = {
-            1: "Method 1: Highlight Selected",
-            2: "Method 2: Edge Highlight",
-            3: "Method 3: Highlight & Edge",
-            4: "Method 4: Selected Regions Red"
-        }
-        for method_id, method_name in method_names.items():
-            action = QAction(method_name, self)
-            action.setCheckable(True)
-            action.setChecked(self.visualization_method == method_id)
-            action.triggered.connect(lambda checked, m=method_id: self.change_visualization_method(m))
-            visualization_menu.addAction(action)
-
-        context_menu.addMenu(visualization_menu)
-
-        # 其他操作
+        # 光谱图
         action_spectrum = QAction("Spectrum plot", self)
         action_spectrum.triggered.connect(lambda: self.show_spectrum_plot(position))
+        context_menu.addAction(action_spectrum)
+
+        # 保存当前蒙版图
         action_save_image = QAction("Save Image", self)
         action_save_image.triggered.connect(self.save_masked_image)
-        context_menu.addAction(action_spectrum)
         context_menu.addAction(action_save_image)
+
         context_menu.exec(self.mapToGlobal(position))
 
     # Add a method to set HSI data
@@ -251,151 +240,59 @@ class ClassificationImageLabel(QLabel):
         except Exception as e:
             print(f"Error in save_masked_image: {e}")
 
-
     def update_display(self):
-        if self.cluster_map is None:
+        """
+        用半透明蒙版高亮所有 selected_clusters，其它区域保持半透明。
+        """
+        if self.cluster_map is None or self.cluster_image_color is None:
             return
 
-        if self.visualization_method == 1:
-            self.update_display_highlight_selected()
-        elif self.visualization_method == 2:
-            self.update_display_edge_highlight()
-        elif self.visualization_method == 3:
-            self.update_display_highlight_and_edge()
-        elif self.visualization_method == 4:
-            self.update_display_selected_regions_red()
+        # 复制原始颜色图并添加 Alpha 通道
+        img = self.cluster_image_color.copy()
+        h, w, c = img.shape
+        if c == 3:
+            alpha = np.ones((h, w, 1), dtype=img.dtype)
+            img = np.concatenate((img, alpha), axis=2)
 
+        # 默认全图半透明
+        img[:, :, 3] = 0.2
+        # 选中区域不透明
+        if self.selected_clusters:
+            mask = np.isin(self.cluster_map, list(self.selected_clusters))
+            img[mask, 3] = 1.0
+
+        # 转 QImage → QPixmap（深拷贝 QImage 确保稳定性）
+        img8 = (img * 255).astype(np.uint8)
+        bytes_per_line = img8.shape[2] * w
+        qimg = QImage(img8.data, w, h, bytes_per_line, QImage.Format.Format_RGBA8888).copy()
+        pix = QPixmap.fromImage(qimg)
+
+        # 锁定到 pixmap 的实际尺寸
+        self.setFixedSize(pix.size())
+        self.setPixmap(pix)
 
     def update_display_highlight_selected(self):
-        # 选中区域保持原始颜色，未选中区域降低透明度
-        cluster_map = self.cluster_map
-        selected_clusters = self.selected_clusters
+        cmap = self.cluster_map
+        sel = self.selected_clusters
+        rgba_img = self.cluster_image_color.copy()
+        if rgba_img.shape[2] == 3:
+            alpha = np.ones((rgba_img.shape[0], rgba_img.shape[1], 1))
+            rgba_img = np.concatenate((rgba_img, alpha), axis=2)
+        rgba_img[:, :, 3] = 0.2
+        if sel:
+            mask = np.isin(cmap, list(sel))
+            rgba_img[mask, 3] = 1.0
 
-        # 复制原始颜色图像
-        cluster_image_color = self.cluster_image_color.copy()
+        img8 = (rgba_img * 255).astype(np.uint8)
+        h, w, ch = img8.shape
+        bytes_per_line = ch * w
+        qimg = QImage(img8.data, w, h, bytes_per_line, QImage.Format.Format_RGBA8888)
+        qimg = qimg.copy()          # ← 深拷贝，绝对不能省
+        pix = QPixmap.fromImage(qimg)
 
-        # 确保有 Alpha 通道
-        if cluster_image_color.shape[2] == 3:
-            alpha_channel = np.ones((cluster_image_color.shape[0], cluster_image_color.shape[1], 1))
-            cluster_image_color = np.concatenate((cluster_image_color, alpha_channel), axis=2)
-
-        # 默认所有区域的 Alpha 值为较低透明度（例如，0.2）
-        cluster_image_color[:, :, 3] = 0.2  # 未选中区域透明度，您可以调整此值以降低透明度
-
-        if selected_clusters:
-            # 对选中区域，设置 Alpha 值为 1.0
-            selected_mask = np.isin(cluster_map, list(selected_clusters))
-            cluster_image_color[selected_mask, 3] = 1.0  # 选中区域完全不透明
-
-        # 转换为 QPixmap 并显示
-        image_uint8 = (cluster_image_color * 255).astype(np.uint8)
-        height, width, channels = image_uint8.shape
-        bytes_per_line = channels * width
-        qimage = QImage(image_uint8.data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888)
-        pixmap = QPixmap.fromImage(qimage)
-        self.setPixmap(pixmap)
-        self.setScaledContents(True)
-
-
-    def update_display_edge_highlight(self):
-        # 为选中区域添加边缘高亮
-        cluster_map = self.cluster_map
-        selected_clusters = self.selected_clusters
-
-        # 复制原始颜色图像
-        cluster_image_color = self.cluster_image_color.copy()
-
-        if selected_clusters:
-            # 创建边界掩码
-            boundaries = np.zeros_like(cluster_map, dtype=bool)
-
-            for cluster_label in selected_clusters:
-                # 创建选中区域的掩码
-                cluster_mask = (cluster_map == cluster_label)
-                # 找到区域的边界
-                cluster_boundaries = find_boundaries(cluster_mask, mode='outer')
-                # 合并边界
-                boundaries = boundaries | cluster_boundaries
-
-            # 在图像上叠加边界（例如，设置为红色）
-            cluster_image_color[boundaries, :3] = [1.0, 0.0, 0.0]  # 红色
-
-        # 转换为 QPixmap 并显示
-        image_uint8 = (cluster_image_color * 255).astype(np.uint8)
-        height, width, channels = image_uint8.shape
-        bytes_per_line = channels * width
-        qimage = QImage(image_uint8.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
-        pixmap = QPixmap.fromImage(qimage)
-        self.setPixmap(pixmap)
-        self.setScaledContents(True)
-
-    def update_display_highlight_and_edge(self):
-        # 同时改变透明度并添加边缘高亮
-        cluster_map = self.cluster_map
-        selected_clusters = self.selected_clusters
-
-        # 复制原始颜色图像
-        cluster_image_color = self.cluster_image_color.copy()
-
-        # 确保有 Alpha 通道
-        if cluster_image_color.shape[2] == 3:
-            alpha_channel = np.ones((cluster_image_color.shape[0], cluster_image_color.shape[1], 1))
-            cluster_image_color = np.concatenate((cluster_image_color, alpha_channel), axis=2)
-
-        # 默认所有区域的 Alpha 值为较低透明度（例如，0.2）
-        cluster_image_color[:, :, 3] = 0.2  # 未选中区域透明度
-
-        if selected_clusters:
-            # 对选中区域，设置 Alpha 值为 1.0
-            selected_mask = np.isin(cluster_map, list(selected_clusters))
-            cluster_image_color[selected_mask, 3] = 1.0  # 选中区域完全不透明
-
-            # 创建边界掩码
-            boundaries = np.zeros_like(cluster_map, dtype=bool)
-
-            for cluster_label in selected_clusters:
-                # 创建选中区域的掩码
-                cluster_mask = (cluster_map == cluster_label)
-                # 找到区域的边界
-                cluster_boundaries = find_boundaries(cluster_mask, mode='outer')
-                # 合并边界
-                boundaries = boundaries | cluster_boundaries
-
-            # 在图像上叠加边界（例如，设置为红色）
-            cluster_image_color[boundaries, :3] = [1.0, 0.0, 0.0]  # 红色
-            cluster_image_color[boundaries, 3] = 1.0  # 确保边界是完全不透明的
-
-        # 转换为 QPixmap 并显示
-        image_uint8 = (cluster_image_color * 255).astype(np.uint8)
-        height, width, channels = image_uint8.shape
-        bytes_per_line = channels * width
-        qimage = QImage(image_uint8.data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888)
-        pixmap = QPixmap.fromImage(qimage)
-        self.setPixmap(pixmap)
-        self.setScaledContents(True)
-
-    def update_display_selected_regions_red(self):
-        # 选中区域变为红色，未选中区域保持原始颜色
-        cluster_map = self.cluster_map
-        selected_clusters = self.selected_clusters
-
-        # 复制原始颜色图像
-        cluster_image_color = self.cluster_image_color.copy()
-
-        if selected_clusters:
-            # 对于每个选中的聚类区域，将其颜色更改为红色
-            for cluster_label in selected_clusters:
-                mask = (cluster_map == cluster_label)
-                cluster_image_color[mask, :3] = [1.0, 0.0, 0.0]  # 红色
-
-        # 转换为 QPixmap 并显示
-        image_uint8 = (cluster_image_color[:, :, :3] * 255).astype(np.uint8)
-        height, width, _ = image_uint8.shape
-        bytes_per_line = 3 * width
-        qimage = QImage(image_uint8.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
-        pixmap = QPixmap.fromImage(qimage)
-        self.setPixmap(pixmap)
-        self.setScaledContents(True)
+        self.setFixedSize(pix.size())
+        self.setPixmap(pix)
+        self.setScaledContents(False)
 
 
     def update_ndvi_display(self):
@@ -427,7 +324,7 @@ class ClassificationImageLabel(QLabel):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        
+
         self.loaded_image = None  # To store the loaded image for Vis Window
         self.image_path = ""
         self.setWindowTitle("MainWindow")
@@ -435,7 +332,7 @@ class MainWindow(QMainWindow):
 
         # Initialize the classifier
         self.classifier = HyperspectralClassifier()
-        
+
         # Create menu bar
         self.create_menu_bar()
 
@@ -447,7 +344,7 @@ class MainWindow(QMainWindow):
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         left_frame = QFrame()
         left_frame.setFixedWidth(200)
         left_frame.setStyleSheet("""
@@ -457,10 +354,10 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_frame)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
-        
+
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(20, 20, 20, 20)
-        
+
         main_widget.setLayout(main_layout)
         main_layout.addWidget(left_frame)
         main_layout.addLayout(right_layout)
@@ -519,11 +416,11 @@ class MainWindow(QMainWindow):
         # This will make the buttons fill the available space
         for i in range(len(sidebar_buttons)):
             left_layout.setStretch(i, 1)
-        
+
         # Stack for right layout
         self.stack = QStackedWidget()
         right_layout.addWidget(self.stack)
-        
+
         # Create pages
         self.create_visualization_page()
         self.create_super_resolution_page()
@@ -597,7 +494,7 @@ class MainWindow(QMainWindow):
         if not pixmap.isNull():
             self.loaded_image = self.get_scaled_pixmap(pixmap)
             print("QPixmap successfully loaded.")
-            
+
             # Update the file path label here immediately
             self.visualization_file_label.setText(f"File path: {self.image_path}")
 
@@ -660,7 +557,7 @@ class MainWindow(QMainWindow):
                     assert False
                 print(f"Image saved to {save_path}")
         else:
-            print("No image to save.")           
+            print("No image to save.")
 
     def eventFilter(self, widget, event):
         if event.type() == QEvent.Type.Resize:
@@ -669,7 +566,7 @@ class MainWindow(QMainWindow):
             if self.current_tab == "Visualization":
                 self.update_visualization_tab()
             elif self.current_tab == "Super-resolution":
-                self.update_super_resolution_tab() 
+                self.update_super_resolution_tab()
             elif self.current_tab == "Calibration":
                 self.update_calibration_tab()
             elif self.current_tab == "Classification":
@@ -749,7 +646,7 @@ class MainWindow(QMainWindow):
 
         # Add a spacer to push the banner to the bottom
         layout.addStretch(1)
-        
+
         # File path label (same layout as Super-resolution tab)
         file_layout = QHBoxLayout()
         self.visualization_file_label = QLabel("File path: No image loaded")
@@ -925,7 +822,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.progress_bar)
 
         self.stack.addWidget(page)
-        
+
     def run_calibration(self):
         # Load and set file path for the calibration
         if self.image_path:
@@ -1223,84 +1120,26 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(page)
         # print("Classification page created and added to stack.")  # 调试信息
 
-
     def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi, cluster_image_color):
         """
-        Slot called when the worker finishes:
-        1) Stop the indeterminate progress bar.
-        2) Store cluster_map, ndvi and the raw classification color array.
-        3) Display the full-color classification pixmap.
-        4) Hook clicks to our region-click handler.
+        接收 Worker 完成信号后：
+        1) 停止进度条
+        2) 注入到 ClassificationImageLabel
+        3) 触发初次渲染
         """
-        # 1) stop the busy bar
+        # 1) 停 busy bar
         self.unsupervised_progress_bar.setRange(0, 1)
         self.unsupervised_progress_bar.setValue(1)
 
-        # 2) store everything for later
-        self.cluster_map           = cluster_map            # 2D int array
-        self.ndvi                  = ndvi                   # 2D float array
-        self.class_pixmap         = pixmap                  # QPixmap for full-color result
-        self.class_color_array    = (cluster_image_color[:, :, :3] * 255).astype(np.uint8)
-        #    -> shape (H, W, 3) uint8
+        # 2) 注入数据
+        self.visualization_label_class.set_cluster_map(cluster_map)
+        self.visualization_label_class.set_ndvi(ndvi)
+        self.visualization_label_class.set_cluster_image_color(cluster_image_color)
 
-        # 3) show the full-color result, at native size
-        self._apply_pixmap_to_label(self.class_pixmap)
+        # 3) 渲染分类结果（不回退到 RGB）
+        self.visualization_label_class.update_display()
+        self.visualization_label_class.update_ndvi_display()
 
-        # 4) install the click handler
-        self.visualization_label_class.mousePressEvent = self._region_click_handler
-
-
-    def _region_click_handler(self, event):
-        """
-        On left-click:
-          • Figure out which cluster was clicked.
-          • Compute & display its average NDVI.
-          • Composite a semi-transparent overlay on the full-color map.
-        Ignore all other clicks.
-        """
-        if event.button() != Qt.MouseButton.LeftButton:
-            return
-
-        # get click coords in image space
-        pos = event.position()
-        x, y = int(pos.x()), int(pos.y())
-        H, W = self.cluster_map.shape
-
-        # out-of-bounds clicks do nothing
-        if not (0 <= x < W and 0 <= y < H):
-            return
-
-        # 1) find the cluster ID
-        cluster_id = int(self.cluster_map[y, x])
-
-        # 2) compute & display average NDVI
-        avg_val = float(self.ndvi[self.cluster_map == cluster_id].mean())
-        self.ndvi_display.setText(f"Cluster {cluster_id} NDVI: {avg_val:.3f}")
-
-        # 3) build an RGBA array from the original color map
-        rgba = np.zeros((H, W, 4), dtype=np.uint8)
-        rgba[..., :3] = self.class_color_array
-        rgba[..., 3]  = 255  # fully opaque
-
-        # 4) overlay semi-transparent yellow (R=255,G=255,B=0,A=128) on just this cluster
-        mask = (self.cluster_map == cluster_id)
-        rgba[mask, :] = np.array([255, 255,   0, 128], dtype=np.uint8)
-
-        # 5) convert to QPixmap and display
-        qimg = QImage(rgba.data, W, H, 4 * W, QImage.Format.Format_RGBA8888)
-        pix  = QPixmap.fromImage(qimg)
-        self._apply_pixmap_to_label(pix)
-
-
-    def _apply_pixmap_to_label(self, pixmap: QPixmap):
-        """
-        Helper to show pixmap at 1:1 pixel ratio:
-        • resize QLabel to the pixmap size
-        • disable scaling
-        """
-        self.visualization_label_class.setFixedSize(pixmap.size())
-        self.visualization_label_class.setPixmap(pixmap)
-        self.visualization_label_class.setScaledContents(False)
 
 
     def unsupervised_classification_error(self, error_message):
@@ -1309,52 +1148,44 @@ class MainWindow(QMainWindow):
         self.unsupervised_progress_bar.setRange(0, 100)
         self.unsupervised_progress_bar.setValue(0)
 
-
-
     def run_unsupervised_classification(self):
         try:
             if self.hsi is None:
-                print("No image loaded.")
                 self.visualization_label_class.setText("No image loaded.")
                 return
 
-            # ── 1) Extract wavelengths from metadata BEFORE we overwrite self.hsi ──
+            # 1) Extract wavelengths
             if hasattr(self.hsi, 'metadata') and 'wavelength' in self.hsi.metadata:
                 wavelengths = [float(w) for w in self.hsi.metadata['wavelength']]
             else:
-                QMessageBox.warning(
-                    self,
-                    "Wavelengths Error",
-                    "Cannot retrieve wavelength metadata from the loaded HSI."
-                )
+                QMessageBox.warning(self, "Wavelengths Error",
+                                    "Cannot retrieve wavelength metadata.")
                 return
 
-            # ── 2) Apply AprilTag‐based mask (this may convert self.hsi → ndarray) ──
+            # 2) Preprocess: crop HSI only
             try:
-                self.hsi = preprocess_hsi_with_apriltag_multiscale(
+                hsi_cropped = preprocess_hsi_with_apriltag_multiscale(
                     self.hsi, self.image_path
                 )
             except ValueError as ve:
                 QMessageBox.warning(self, "Apriltag Detection Error", str(ve))
                 return
 
-            self.visualization_label_class.setText("Classification in progress...")
+            # Update HSI to cropped version
+            self.hsi = hsi_cropped
+
+            # 3) Show busy indicator
+            self.visualization_label_class.setText("Classification in progress.")
             self.unsupervised_progress_bar.setRange(0, 0)
 
-            # ── 3) Get k‐means parameters ──
+            # 4) Start worker with 4 parameters (no mask)
             k = self.num_classes_input.value()
-            max_iterations = self.max_iterations_input.value()
-
-            # ── 4) Prepare hsi_data for the worker ──
-            # If self.hsi still has a .load(), use it; otherwise assume it's already an ndarray
-            if hasattr(self.hsi, 'load'):
-                hsi_data = self.hsi.load()
-            else:
-                hsi_data = self.hsi
-
-            # ── 5) Launch the worker thread ──
+            max_iter = self.max_iterations_input.value()
             self.unsupervised_worker = UnsupervisedClassificationWorker(
-                hsi_data, wavelengths, k, max_iterations
+                hsi_cropped,
+                wavelengths,
+                k,
+                max_iter
             )
             self.unsupervised_worker.classification_finished.connect(
                 self.unsupervised_classification_finished
@@ -1365,9 +1196,7 @@ class MainWindow(QMainWindow):
             self.unsupervised_worker.start()
 
         except Exception as e:
-            print(f"Error during unsupervised classification: {e}")
-            self.visualization_label_class.setText(f"Error: {str(e)}")
-
+            self.visualization_label_class.setText(f"Error: {e}")
 
     def run_supervised_classification(self):
         """Load and classify the image, display in classification tab."""
@@ -1461,19 +1290,19 @@ class MainWindow(QMainWindow):
             assert False
 
     def update_classification_tab(self):
-        if self.loaded_image:  # If an image was loaded
+        """
+                切换到 Classification 页时，不再自动贴回原始 RGB。
+                已保留“文件路径”提示及按钮状态更新。
+                """
+        if self.loaded_image:
             self.classification_inputfile_label.setText(f"File path: {self.image_path} ")
-            #self.visualization_label_class.setPixmap(self.loaded_image)
-            #self.visualization_label_class.setPixmap(self.get_scaled_pixmap(self.loaded_image))
-            self.set_label_scaled_pixmap(self.visualization_label_class, self.loaded_image)
-            self.visualization_label_class.setScaledContents(True)
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
         else:
             self.classification_inputfile_label.setText("File path: No image loaded")
             self.visualization_label_class.setText("No image loaded")
-            self.save_hyperspectral_image_action.setDisabled(True)
-            self.save_viewer_image_action.setDisabled(True)
+
+        # 保存/导出按钮一律禁用，等分类完成后再启用
+        self.save_hyperspectral_image_action.setDisabled(True)
+        self.save_viewer_image_action.setDisabled(True)
 
     def change_page(self, button_text):
         """Switch between pages and update the visualization tab if necessary."""
@@ -1484,7 +1313,7 @@ class MainWindow(QMainWindow):
         if button_text == "Visualization":
             self.update_visualization_tab()
         elif button_text == "Super-resolution":
-            self.update_super_resolution_tab() 
+            self.update_super_resolution_tab()
         elif button_text == "Calibration":
             self.update_calibration_tab()
         elif button_text == "Classification":

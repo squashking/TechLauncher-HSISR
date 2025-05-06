@@ -195,40 +195,36 @@ def detect_apriltags(hsi):
 
 def preprocess_hsi_with_apriltag_multiscale(hsi, file_path, downscale_width=800):
     """
-    1) Ensure hsi is a NumPy ndarray, not a BilFile.
+    1) Ensure hsi is a NumPy ndarray.
     2) Verify .bil extension.
-    3) Detect exactly 4 Apriltags (no downsampling).
-    4) Build & apply mask to zero-out everything outside the tags’ outer rectangle.
-    5) Crop the masked HSI to the minimal bounding rectangle enclosing all Apriltags.
+    3) Detect exactly 4 AprilTags.
+    4) Build & apply mask to zero-out outside the tags’ outer rectangle.
+    5) Crop the masked HSI to the minimal bounding rectangle enclosing all AprilTags.
     """
-    # --- 1) Force ndarray conversion ---
+    # 1) Force ndarray conversion
     if not isinstance(hsi, np.ndarray):
-        # slice will load the full cube into memory as an ndarray
         hsi = hsi[:, :, :]
 
     H, W, _ = hsi.shape
 
-    # --- 2) Extension check ---
+    # 2) Extension check
     if not file_path.lower().endswith('.bil'):
         raise ValueError("The file extension is not .bil. Please provide a valid .bil file.")
 
-    # --- 3) Apriltag detection ---
+    # 3) AprilTag detection
     final_detections = detect_apriltags(hsi)
-    # (Assumes detect_apriltags returns a list of 4 dicts with keys "corners" and "center")
 
-    # --- 4) Build & apply mask ---
+    # 4) Build & apply mask
     mask = build_mask_with_detections(hsi, final_detections)
     hsi_masked = apply_mask_to_hsi(hsi, mask)
 
-    # --- 5) Compute bounding box over all tag corners ---
+    # 5) Compute bounding box and crop
     all_corners = np.vstack([d["corners"] for d in final_detections])
     x_min = max(0, int(np.floor(all_corners[:, 0].min())))
     x_max = min(W, int(np.ceil (all_corners[:, 0].max())))
     y_min = max(0, int(np.floor(all_corners[:, 1].min())))
     y_max = min(H, int(np.ceil (all_corners[:, 1].max())))
 
-    # Crop the masked HSI cube to that rectangle
     hsi_cropped = hsi_masked[y_min:y_max, x_min:x_max, :]
 
     return hsi_cropped
-
