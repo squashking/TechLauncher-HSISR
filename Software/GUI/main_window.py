@@ -326,6 +326,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.loaded_image = None  # To store the loaded image for Vis Window
+        self.classification_done = False
         self.image_path = ""
         self.setWindowTitle("MainWindow")
         self.setGeometry(100, 100, 1024, 768)
@@ -464,60 +465,53 @@ class MainWindow(QMainWindow):
         about_dialog.show()
 
     def load_image(self):
-        """Loads the hyperspectral image and displays its RGB composite."""
-        # Open file dialog to select the hyperspectral image file
-        print("Opening file dialog to select .bil file...")
-        image_path, _ = QFileDialog.getOpenFileName(self, 'Open file', None, "Hyperspectral Images (*.bil *.bip *.bsq)")
+        """加载 HSI 并立即在所有页显示原始 RGB，重置 classification_done"""
+        # 1) 打开文件对话
+        image_path, _ = QFileDialog.getOpenFileName(
+            self, 'Open file', None,
+            "Hyperspectral Images (*.bil *.bip *.bsq)"
+        )
         if not image_path:
-            print("No file selected or invalid file.")
             return
         self.image_path = image_path
-        print(f"Selected image file: {self.image_path}")
 
-        # Get corresponding header file
+        # 2) 读取 .hdr & HSI 数据
         header_path = image_path.replace('.bil', '.hdr')
         if not os.path.exists(header_path):
-            print(f"Header file not found at: {header_path}")
+            QMessageBox.warning(self, "Load Error", "Header file not found.")
             return
-        print(f"Header file located at: {header_path}")
-        # Load hyperspectral image using spectral library
-        self.hsi = load_hsi(image_path, header_path)
-        print(f"Hyperspectral image loaded successfully from {image_path}")
-        self.visualization_label.set_hsi(self.hsi)
+        try:
+            self.hsi = load_hsi(image_path, header_path)
+        except Exception as e:
+            QMessageBox.warning(self, "Load Error", f"Failed to load HSI:\n{e}")
+            return
 
-        # Generate an RGB composite image to display
+        # 3) 生成 RGB 预览并保留
         save_path = "img/temp_rgb.png"
         show_rgb(self.hsi, save_path)
         pixmap = QPixmap(save_path)
-
-        # make the path auto displayed
-        if not pixmap.isNull():
-            self.loaded_image = self.get_scaled_pixmap(pixmap)
-            print("QPixmap successfully loaded.")
-
-            # Update the file path label here immediately
-            self.visualization_file_label.setText(f"File path: {self.image_path}")
-
-            self.vis_viewer_image = self.get_scaled_pixmap(pixmap)
-            self.sr_viewer_image = self.get_scaled_pixmap(pixmap)
-            self.calibration_viewer_image = self.get_scaled_pixmap(pixmap)
-        else:
-            print("Failed to load QPixmap from the generated RGB image.")
+        if pixmap.isNull():
+            QMessageBox.warning(self, "Visualization Error", "Failed to generate RGB preview.")
             return
+        self.loaded_image = pixmap
+        # 重置分类状态
+        self.classification_done = False
 
-        # Update tab states
-        for button_text in self.tab_state:
-            self.tab_state[button_text] = 1
+        # 4) 在 Visualization 页贴图
+        self.visualization_file_label.setText(f"File path: {self.image_path}")
+        self.set_label_scaled_pixmap(self.visualization_label, pixmap)
+        self.visualization_label.setScaledContents(True)
+        self.radio_rgb.setChecked(True)
+        self.tab_state["Visualization"] = 1
+        self.save_hyperspectral_image_action.setDisabled(False)
+        self.save_viewer_image_action.setDisabled(False)
 
-        # Clear cached hsi
-        self.output_sr_hsi = self.hsi
-        self.output_calibration_hsi = self.hsi
+        # 5) 启用其它页面
+        for page in ["Super-resolution", "Calibration", "Classification"]:
+            self.tab_state[page] = 1
 
-        # Call to update the visualization tab
-        self.update_visualization_tab()
-        self.update_super_resolution_tab()
-        self.update_calibration_tab()
-        self.update_classification_tab()
+        # 6) 切到 Visualization
+        self.change_page("Visualization")
 
     def save_hyperspectral_image(self):
         """Save the currently visualized image."""
@@ -1120,23 +1114,24 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(page)
         # print("Classification page created and added to stack.")  # 调试信息
 
-    def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi, cluster_image_color):
+    def unsupervised_classification_finished(self, pixmap, cluster_map, ndvi, color_img):
         """
-        接收 Worker 完成信号后：
+        接收分类完成信号后：
         1) 停止进度条
-        2) 注入到 ClassificationImageLabel
-        3) 触发初次渲染
+        2) 标记已分类
+        3) 注入数据到 ClassificationImageLabel 并渲染
         """
-        # 1) 停 busy bar
+        # 停 busy bar
         self.unsupervised_progress_bar.setRange(0, 1)
         self.unsupervised_progress_bar.setValue(1)
 
-        # 2) 注入数据
+        # 标记分类完成
+        self.classification_done = True
+
+        # 注入并渲染
         self.visualization_label_class.set_cluster_map(cluster_map)
         self.visualization_label_class.set_ndvi(ndvi)
-        self.visualization_label_class.set_cluster_image_color(cluster_image_color)
-
-        # 3) 渲染分类结果（不回退到 RGB）
+        self.visualization_label_class.set_cluster_image_color(color_img)
         self.visualization_label_class.update_display()
         self.visualization_label_class.update_ndvi_display()
 
@@ -1291,16 +1286,23 @@ class MainWindow(QMainWindow):
 
     def update_classification_tab(self):
         """
-                切换到 Classification 页时，不再自动贴回原始 RGB。
-                已保留“文件路径”提示及按钮状态更新。
-                """
-        if self.loaded_image:
-            self.classification_inputfile_label.setText(f"File path: {self.image_path} ")
-        else:
+        切到 Classification 页时：
+        - 如果未分类，显示原始 RGB；
+        - 如果已分类，保持现有显示（分类结果）。
+        """
+        if not self.loaded_image:
+            # 无图
             self.classification_inputfile_label.setText("File path: No image loaded")
             self.visualization_label_class.setText("No image loaded")
-
-        # 保存/导出按钮一律禁用，等分类完成后再启用
+        else:
+            # 有图：更新路径
+            self.classification_inputfile_label.setText(f"File path: {self.image_path} ")
+            if not self.classification_done:
+                # 尚未分类，显示原始 RGB
+                self.set_label_scaled_pixmap(self.visualization_label_class, self.loaded_image)
+                self.visualization_label_class.setScaledContents(True)
+            # 已分类时不覆盖，让 unsupervised_classification_finished 保持的结果留在界面上
+        # 分类页按钮状态
         self.save_hyperspectral_image_action.setDisabled(True)
         self.save_viewer_image_action.setDisabled(True)
 
