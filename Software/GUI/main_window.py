@@ -7,9 +7,6 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent, QRect, QSize
 
 import sys
 import os
-
-import cv2
-import matplotlib.pyplot as plt
 import shutil
 import copy
 import time
@@ -18,6 +15,7 @@ import spectral.io.envi as envi
 from spectral import get_rgb
 import numpy as np
 import platform
+from matplotlib import colormaps
 
 
 if platform.system() == 'Windows':
@@ -84,14 +82,19 @@ class ClassificationImageLabel(QLabel):
     def __init__(self, ndvi_display, parent=None):
         super().__init__(parent)
         self.cluster_map = None
-        self.selected_clusters = set()
         self.ndvi = None
-        self.original_pixmap = None
+        self.cluster_image_color = None
+        self.selected_clusters = set()
         self.ndvi_display = ndvi_display
-        self.hsi = None  # Add this to hold the HSI data
-        self.cluster_image_color = None  # To hold the color image array
-        self.original_cluster_image_color = None  # To hold the original color image array
-        self.visualization_method = 3
+
+        # 不自动缩放
+        self.setScaledContents(False)
+
+        # 新版获取 colormap，避免 deprecation warning
+        from matplotlib import colormaps
+        self.overlay_cmap = colormaps['tab20']
+        self.num_overlay_colors = self.overlay_cmap.N
+        self.alpha = 0.4
 
     def set_cluster_map(self, cluster_map):
         self.cluster_map = cluster_map
@@ -242,57 +245,45 @@ class ClassificationImageLabel(QLabel):
 
     def update_display(self):
         """
-        用半透明蒙版高亮所有 selected_clusters，其它区域保持半透明。
+        在底层分类色彩图上，对每个 selected_clusters 用不同彩色半透明 mask 做 alpha-blend，
+        100% 在 NumPy 层面计算，最后一次性构造 QImage 并 copy，避免内存野指针。
         """
         if self.cluster_map is None or self.cluster_image_color is None:
             return
 
-        # 复制原始颜色图并添加 Alpha 通道
-        img = self.cluster_image_color.copy()
-        h, w, c = img.shape
-        if c == 3:
-            alpha = np.ones((h, w, 1), dtype=img.dtype)
-            img = np.concatenate((img, alpha), axis=2)
+        # 1) 准备底图：HxWx3, uint8
+        base = (self.cluster_image_color * 255).astype(np.uint8)
+        # 确保 C-连续
+        base = np.ascontiguousarray(base)
+        h, w, _ = base.shape
 
-        # 默认全图半透明
-        img[:, :, 3] = 0.2
-        # 选中区域不透明
-        if self.selected_clusters:
-            mask = np.isin(self.cluster_map, list(self.selected_clusters))
-            img[mask, 3] = 1.0
+        # 2) 对每个选中 segment 做 overlay
+        for lbl in self.selected_clusters:
+            mask = (self.cluster_map == lbl)
+            if not mask.any():
+                continue
+            # 取一个对比色（tab20）
+            rgba = self.overlay_cmap(lbl % self.num_overlay_colors)
+            overlay_color = np.array(rgba[:3]) * 255  # float->0-255
+            # NumPy 向量化 alpha blend
+            for c in range(3):
+                channel = base[..., c]
+                # 公式：out = alpha*overlay + (1-alpha)*orig
+                channel[mask] = (
+                        overlay_color[c] * self.alpha +
+                        channel[mask] * (1.0 - self.alpha)
+                ).astype(np.uint8)
+                base[..., c] = channel
 
-        # 转 QImage → QPixmap（深拷贝 QImage 确保稳定性）
-        img8 = (img * 255).astype(np.uint8)
-        bytes_per_line = img8.shape[2] * w
-        qimg = QImage(img8.data, w, h, bytes_per_line, QImage.Format.Format_RGBA8888).copy()
+        # 3) 一次性构造 QImage，并深拷贝
+        bytes_per_line = 3 * w
+        qimg = QImage(base.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
         pix = QPixmap.fromImage(qimg)
 
-        # 锁定到 pixmap 的实际尺寸
+        # 4) 显示
         self.setFixedSize(pix.size())
         self.setPixmap(pix)
 
-    def update_display_highlight_selected(self):
-        cmap = self.cluster_map
-        sel = self.selected_clusters
-        rgba_img = self.cluster_image_color.copy()
-        if rgba_img.shape[2] == 3:
-            alpha = np.ones((rgba_img.shape[0], rgba_img.shape[1], 1))
-            rgba_img = np.concatenate((rgba_img, alpha), axis=2)
-        rgba_img[:, :, 3] = 0.2
-        if sel:
-            mask = np.isin(cmap, list(sel))
-            rgba_img[mask, 3] = 1.0
-
-        img8 = (rgba_img * 255).astype(np.uint8)
-        h, w, ch = img8.shape
-        bytes_per_line = ch * w
-        qimg = QImage(img8.data, w, h, bytes_per_line, QImage.Format.Format_RGBA8888)
-        qimg = qimg.copy()          # ← 深拷贝，绝对不能省
-        pix = QPixmap.fromImage(qimg)
-
-        self.setFixedSize(pix.size())
-        self.setPixmap(pix)
-        self.setScaledContents(False)
 
 
     def update_ndvi_display(self):
