@@ -9,6 +9,7 @@ import numpy as np
 
 import platform
 
+
 if platform.system() == 'Windows':
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Software')))
 else:
@@ -16,47 +17,45 @@ else:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Functions.Unsupervised_classification.unsupervised_classification import load_and_process_hsi_data
-
+from Functions.Unsupervised_classification.unsupervised_classification import find_Red_NIR_bands
+from Functions.Visualization.Visualize_HSI import calculate_ndvi
 
 
 class UnsupervisedClassificationWorker(QThread):
-    # Modify the signal to emit cluster_map and ndvi
     classification_finished = pyqtSignal(QPixmap, np.ndarray, np.ndarray, np.ndarray)
-    error_occurred = pyqtSignal(str)
+    error_occurred        = pyqtSignal(str)
 
     def __init__(self, hsi_data, wavelengths, k, max_iterations):
         super().__init__()
-        self.hsi_data = hsi_data
-        self.wavelengths = wavelengths
-        self.k = k
+        self.hsi_data      = hsi_data
+        self.wavelengths   = wavelengths
+        self.k             = k
         self.max_iterations = max_iterations
 
     def run(self):
         try:
-            # Perform classification
+            # 1) Perform clustering and NDVI via the existing helper
             cluster_map, ndvi = load_and_process_hsi_data(
-                self.hsi_data, self.wavelengths, self.k, self.max_iterations
+                self.hsi_data,
+                self.wavelengths,
+                k=self.k,
+                max_iterations=self.max_iterations
             )
 
-            # Map clusters to colors
+            # 2) Generate color image
+            num_clusters = cluster_map.max() + 1
+            normed = cluster_map / (num_clusters - 1)
             from matplotlib import pyplot as plt
-            num_clusters = np.max(cluster_map) + 1
-            norm_cluster_map = cluster_map / (num_clusters - 1)
-            cluster_image_color = plt.cm.nipy_spectral(norm_cluster_map)
-            cluster_image_color = cluster_image_color[:, :, :3]  # Keep as float array in [0,1]
+            color_img = plt.cm.nipy_spectral(normed)[:, :, :3]
 
-            # Convert to QPixmap
-            image_uint8 = (cluster_image_color * 255).astype(np.uint8)
-            height, width, _ = image_uint8.shape
-            bytes_per_line = 3 * width
-            q_image = QImage(
-                image_uint8.data, width, height, bytes_per_line, QImage.Format.Format_RGB888
-            )
-            pixmap = QPixmap.fromImage(q_image)
+            # 3) Convert to QPixmap (with deep-copy)
+            img8 = (color_img * 255).astype(np.uint8)
+            h, w, _ = img8.shape
+            qimg = QImage(img8.data, w, h, 3*w, QImage.Format.Format_RGB888).copy()
+            pix = QPixmap.fromImage(qimg)
 
-            # Emit the pixmap, cluster_map, ndvi, and cluster_image_color
-            self.classification_finished.emit(pixmap, cluster_map, ndvi, cluster_image_color)
+            # 4) Emit results
+            self.classification_finished.emit(pix, cluster_map, ndvi, color_img)
 
         except Exception as e:
-            error_message = str(e)
-            self.error_occurred.emit(error_message)
+            self.error_occurred.emit(str(e))
