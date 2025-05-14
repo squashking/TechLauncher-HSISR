@@ -83,7 +83,6 @@ class ClassificationImageLabel(QLabel):
         super().__init__(parent)
         self.cluster_map = None
         self.ndvi = None
-        self.cluster_image_color = None
         self.selected_clusters = set()
         self.ndvi_display = ndvi_display
 
@@ -95,12 +94,23 @@ class ClassificationImageLabel(QLabel):
         self.overlay_cmap = colormaps['tab20']
         self.num_overlay_colors = self.overlay_cmap.N
         self.alpha = 0.4
+        self.base_rgb_image = None  # HxWx3 uint8 原始 RGB 底图
+        self.default_alpha = 0.2  # 默认透明度
+        self.highlight_alpha = 0.7  # 点击后更不透明
+        self.num_clusters = 0  # 聚类数
 
     def set_cluster_map(self, cluster_map):
         self.cluster_map = cluster_map
+        self.num_clusters = int(cluster_map.max()) + 1
 
     def set_ndvi(self, ndvi):
         self.ndvi = ndvi
+
+    def set_base_rgb_image(self, rgb_arr):
+        """
+           设置底层的 RGB 图像数组 (HxWx3 uint8)，后续在 update_display 时叠加 mask。
+        """
+        self.base_rgb_image = rgb_arr.copy()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -243,47 +253,86 @@ class ClassificationImageLabel(QLabel):
         except Exception as e:
             print(f"Error in save_masked_image: {e}")
 
+    # def update_display(self):
+    #     """
+    #     在底层分类色彩图上，对每个 selected_clusters 用不同彩色半透明 mask 做 alpha-blend，
+    #     100% 在 NumPy 层面计算，最后一次性构造 QImage 并 copy，避免内存野指针。
+    #     """
+    #     if self.cluster_map is None or self.cluster_image_color is None:
+    #         return
+    #
+    #     # 1) 准备底图：HxWx3, uint8
+    #     base = (self.cluster_image_color * 255).astype(np.uint8)
+    #     # 确保 C-连续
+    #     base = np.ascontiguousarray(base)
+    #     h, w, _ = base.shape
+    #
+    #     # 2) 对每个选中 segment 做 overlay
+    #     for lbl in self.selected_clusters:
+    #         mask = (self.cluster_map == lbl)
+    #         if not mask.any():
+    #             continue
+    #         # 取一个对比色（tab20）
+    #         rgba = self.overlay_cmap(lbl % self.num_overlay_colors)
+    #         overlay_color = np.array(rgba[:3]) * 255  # float->0-255
+    #         # NumPy 向量化 alpha blend
+    #         for c in range(3):
+    #             channel = base[..., c]
+    #             # 公式：out = alpha*overlay + (1-alpha)*orig
+    #             channel[mask] = (
+    #                     overlay_color[c] * self.alpha +
+    #                     channel[mask] * (1.0 - self.alpha)
+    #             ).astype(np.uint8)
+    #             base[..., c] = channel
+    #
+    #     # 3) 一次性构造 QImage，并深拷贝
+    #     bytes_per_line = 3 * w
+    #     qimg = QImage(base.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
+    #     pix = QPixmap.fromImage(qimg)
+    #
+    #     # 4) 显示
+    #     self.setFixedSize(pix.size())
+    #     self.setPixmap(pix)
+
     def update_display(self):
         """
-        在底层分类色彩图上，对每个 selected_clusters 用不同彩色半透明 mask 做 alpha-blend，
-        100% 在 NumPy 层面计算，最后一次性构造 QImage 并 copy，避免内存野指针。
+           在原始 RGB 底图上，对所有 segment （或仅 selected_clusters）叠加半透明彩色 mask。
+           selected_clusters 为空时，显示所有 segment；否则仅对 selected_clusters 用更高不透明度叠加。
         """
-        if self.cluster_map is None or self.cluster_image_color is None:
+        if self.cluster_map is None or self.base_rgb_image is None:
             return
 
-        # 1) 准备底图：HxWx3, uint8
-        base = (self.cluster_image_color * 255).astype(np.uint8)
-        # 确保 C-连续
-        base = np.ascontiguousarray(base)
+        base = self.base_rgb_image.copy()
         h, w, _ = base.shape
 
-        # 2) 对每个选中 segment 做 overlay
-        for lbl in self.selected_clusters:
+        # 对每个 segment 叠加 mask
+        for lbl in range(self.num_clusters):
             mask = (self.cluster_map == lbl)
             if not mask.any():
                 continue
-            # 取一个对比色（tab20）
-            rgba = self.overlay_cmap(lbl % self.num_overlay_colors)
-            overlay_color = np.array(rgba[:3]) * 255  # float->0-255
-            # NumPy 向量化 alpha blend
-            for c in range(3):
-                channel = base[..., c]
-                # 公式：out = alpha*overlay + (1-alpha)*orig
-                channel[mask] = (
-                        overlay_color[c] * self.alpha +
-                        channel[mask] * (1.0 - self.alpha)
-                ).astype(np.uint8)
-                base[..., c] = channel
+            # 点击后用 highlight_alpha，其它用 default_alpha；若无选中，则都用 default_alpha
+            if self.selected_clusters:
+                alpha = self.highlight_alpha if lbl in self.selected_clusters else self.default_alpha
+            else:
+                alpha = self.default_alpha
 
-        # 3) 一次性构造 QImage，并深拷贝
+            rgba = self.overlay_cmap(lbl % self.num_overlay_colors)
+            color = (np.array(rgba[:3]) * 255).astype(np.uint8)
+            # 叠加
+            for c in range(3):
+                chan = base[..., c]
+                chan[mask] = (
+                        color[c] * alpha +
+                        chan[mask] * (1.0 - alpha)
+                ).astype(np.uint8)
+                base[..., c] = chan
+
+        # 转为 QPixmap 并显示
         bytes_per_line = 3 * w
         qimg = QImage(base.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
         pix = QPixmap.fromImage(qimg)
-
-        # 4) 显示
         self.setFixedSize(pix.size())
         self.setPixmap(pix)
-
 
 
     def update_ndvi_display(self):
@@ -1119,10 +1168,19 @@ class MainWindow(QMainWindow):
         # 标记分类完成
         self.classification_done = True
 
-        # 注入并渲染
+        # —— 新增：先生成底层 RGB 图阵列 ——
+        hsi_arr = self.unsupervised_worker.hsi_data
+        wavelengths = self.unsupervised_worker.wavelengths
+        # 选三波段生成 RGB
+        rgb_bands = find_RGB_bands(wavelengths)
+        rgb_arr = get_rgb(hsi_arr, rgb_bands)
+        rgb_arr = (rgb_arr * 255).astype(np.uint8)
+        self.visualization_label_class.set_base_rgb_image(rgb_arr)
+
+        # 注入聚类结果和 NDVI
         self.visualization_label_class.set_cluster_map(cluster_map)
         self.visualization_label_class.set_ndvi(ndvi)
-        self.visualization_label_class.set_cluster_image_color(color_img)
+        # 最后一次性渲染
         self.visualization_label_class.update_display()
         self.visualization_label_class.update_ndvi_display()
 
