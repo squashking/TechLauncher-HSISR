@@ -9,6 +9,7 @@ from controllers.base_controller import BaseController
 from controllers.tab_cropping_controller import TabCroppingController
 from controllers.tab_visualisation_controller import TabVisualisationController
 from controllers.tab_calibration_controller import TabCalibrationController
+from controllers.tab_unsupervied_segmentation_controller import TabUnsupervisedSegmentationController
 from widgets.log_label import LogScrollArea
 
 if typing.TYPE_CHECKING:
@@ -32,6 +33,9 @@ class TabWidgetController(BaseController):
 
         self.tab_calibration_controller = TabCalibrationController(logger, main_controller)
         self.tab_widget.addTab(self.tab_calibration_controller.tab_view, "Calibration")
+
+        self.tab_unsupervised_segmentation_controller = TabUnsupervisedSegmentationController(logger, main_controller)
+        self.tab_widget.addTab(self.tab_unsupervised_segmentation_controller.tab_view, "Segmentation")
 
         self.tab_log_label = LogScrollArea(self.logger, "logs/" + sorted(os.listdir("logs"))[-1])
         self.tab_widget.addTab(self.tab_log_label, "Logs")
