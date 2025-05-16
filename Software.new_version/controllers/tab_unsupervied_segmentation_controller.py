@@ -27,6 +27,9 @@ class TabUnsupervisedSegmentationController(BaseController):
         self.hsi = None
         self.unsupervised_worker = None
 
+    def on_load_file(self):
+        pass
+
     def run_unsupervised_classification(self):
         try:
             if self.main_controller.hyperspectral_image is None:

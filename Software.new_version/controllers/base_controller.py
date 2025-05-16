@@ -9,3 +9,6 @@ class BaseController:
     def __init__(self, logger: "logging.Logger", main_controller: "MainController"):
         self.logger = logger
         self.main_controller = main_controller
+
+    def on_load_file(self):
+        raise NotImplementedError()

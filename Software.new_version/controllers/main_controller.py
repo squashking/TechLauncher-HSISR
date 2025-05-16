@@ -37,9 +37,12 @@ class MainController:
 
     def update_hyperspectral_image(self, hyperspectral_image, hyperspectral_image_path=None):
         self.hyperspectral_image = hyperspectral_image
-        self.hyperspectral_image_path = hyperspectral_image_path
+        if hyperspectral_image_path is not None:
+            self.hyperspectral_image_path = hyperspectral_image_path
 
         # Update views - tab_visualisation, tab_calibration
         self.tab_widget_controller.tab_visualisation_controller.on_load_file()
         self.tab_widget_controller.tab_cropping_controller.on_load_file()
+        self.tab_widget_controller.tab_super_resolution_controller.on_load_file()
         self.tab_widget_controller.tab_calibration_controller.on_load_file()
+        self.tab_widget_controller.tab_unsupervised_segmentation_controller.on_load_file()

@@ -1,8 +1,10 @@
 import logging
 import typing
 
+import numpy as np
+from PySide6.QtWidgets import QFileDialog
 import spectral.image
-from PySide6.QtWidgets import QMessageBox
+from spectral.io import envi
 
 from controllers.base_controller import BaseController
 from widgets.tab_cropping_view import TabCroppingView
@@ -49,7 +51,25 @@ class TabCroppingController(BaseController):
         self.on_click_clear_selection_button()
 
     def on_click_save_as_hsi(self):
-        QMessageBox.about(self.main_window, "Save", "Save Hyperspectral Image: to be implemented")
+        file_dialog = QFileDialog()
+        save_path, _ = file_dialog.getSaveFileName(
+            self.tab_view,
+            "Save Hyperspectral Image",
+            "",
+            "Hyperspectral Images (*.bil *.bip *.bsq)")
+        if save_path:
+            if save_path.endswith(".bil"):
+                save_path = save_path.replace(".bil", ".hdr")
+            else:
+                save_path = save_path + ".hdr"
+            envi.save_image(
+                save_path,
+                self.main_controller.hyperspectral_image,
+                dtype=np.float32,
+                interleave="bil",
+                ext="bil",
+                force=True)
+            self.logger.info(f"Cropped hyperspectral image saved to {save_path}")
 
     def on_load_file(self):
         self.tab_view.selectable_image_viewer.set_image(

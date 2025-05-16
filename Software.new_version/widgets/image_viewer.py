@@ -232,6 +232,7 @@ class ImageViewer(QWidget):
 
         self.image_label.setPixmap(image)
         self.image_label.pixmap = image
+        self.image_label.reset_zoom()
 
         self.zoom_in_btn.setEnabled(True)
         self.zoom_out_btn.setEnabled(True)
