@@ -1,6 +1,7 @@
 import logging
 from typing import List
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from controllers.menu_controller import MenuController
@@ -28,6 +29,9 @@ class MainController:
         self.menu_controller = MenuController(logger, self)
         self.status_bar_controller = StatusBarController(logger, self)
         self.tab_widget_controller = TabWidgetController(logger, self)
+
+        icon = QIcon("logo/LEAF-icon.png")
+        self.main_window.setWindowIcon(icon)
 
     @staticmethod
     def get():
