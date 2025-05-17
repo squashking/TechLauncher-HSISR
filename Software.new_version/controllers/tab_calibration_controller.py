@@ -1,19 +1,13 @@
+from datetime import datetime
 import logging
 import os
-import typing
 import re
-from datetime import datetime
+import typing
 
-from matplotlib import pyplot as plt
-import numpy as np
 from PySide6.QtWidgets import QFileDialog, QMessageBox
-import spectral
 
-import Functions.Calibration.calibrate
-from Functions.Basic_Functions import Load_HSI
-from Functions.Visualization import Visualize_HSI
 from controllers.base_controller import BaseController
-from controllers.tab_visualisation_controller import TabVisualisationController
+from utils.leaf_utils.basic import load_hsi, calibrate, convert_hsi_to_rgb_qpixmap
 from widgets.tab_calibration_view import TabCalibrationView
 
 if typing.TYPE_CHECKING:
@@ -41,19 +35,14 @@ class TabCalibrationController(BaseController):
         self.tab_view.input_and_output_button.toggled.connect(lambda: self.tab_view.stack.setCurrentIndex(2))
 
     def run_calibration(self):
-        calibrated_image = Functions.Calibration.calibrate.calibration(
+        calibrated_image = calibrate(
             self.dark_image, self.ref_image, self.main_controller.hyperspectral_image, "data/calibration")
 
-        # From Functions.Visualization.Visualize_HSI.py - show_rgb
-        tuple_rgb_bands = Visualize_HSI.find_RGB_bands(
-            [float(i) for i in calibrated_image.metadata["wavelength"]])
-        rgb_image = spectral.get_rgb(calibrated_image, tuple_rgb_bands)  # (100, 54, 31)
-        rgb_image = (rgb_image * 255).astype(np.uint8)
-        rgb_image = rgb_image.copy()  # Spy don't load it to memory automatically, so must be copied
-        self.logger.info(f"RGB Image Shape: {rgb_image.shape}")
+        rgb_qpixmap = convert_hsi_to_rgb_qpixmap(calibrated_image)
+        self.logger.info(f"RGB Image Shape: {(rgb_qpixmap.height(), rgb_qpixmap.width())}")
 
-        self.tab_view.output_view.set_image(TabVisualisationController.get_QPixmap(lambda buf: plt.imsave(buf, rgb_image)))
-        self.tab_view.output_view_0.set_image(TabVisualisationController.get_QPixmap(lambda buf: plt.imsave(buf, rgb_image)))
+        self.tab_view.output_view.set_image(rgb_qpixmap)
+        self.tab_view.output_view_0.set_image(rgb_qpixmap)
 
         self.tab_view.output_only_button.setEnabled(True)
         self.tab_view.input_and_output_button.setEnabled(True)
@@ -61,11 +50,10 @@ class TabCalibrationController(BaseController):
     def on_load_file(self):
         self.tab_view.input_file_path.setText(self.main_controller.hyperspectral_image_path)
 
-        self.tab_view.input_view.set_image(
-            self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB())
-        self.tab_view.input_view_0.set_image(
-            self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB())
-        
+        rgb_qpixmap = convert_hsi_to_rgb_qpixmap(self.main_controller.hyperspectral_image)
+        self.tab_view.input_view.set_image(rgb_qpixmap)
+        self.tab_view.input_view_0.set_image(rgb_qpixmap)
+
         # Auto search for related files if enabled
         if self.tab_view.auto_search_checkbox.isChecked():
             self.auto_search_files()
@@ -99,7 +87,7 @@ class TabCalibrationController(BaseController):
         self.logger.info(f"Header {mode} file located at: {header_path}")
 
         # Load hyperspectral image using spectral library
-        loaded_image = Load_HSI.load_hsi(image_path, header_path)
+        loaded_image = load_hsi(image_path, header_path)
         self.logger.info(f"{mode} image loaded successfully from {image_path}")
 
         if mode == "dark":

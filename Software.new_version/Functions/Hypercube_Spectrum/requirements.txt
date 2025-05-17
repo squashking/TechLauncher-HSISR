@@ -1,4 +1,0 @@
-matplotlib
-spectral
-mayavi
-configobj

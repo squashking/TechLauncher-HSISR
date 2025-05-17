@@ -5,23 +5,19 @@ import time
 import typing
 
 import numpy as np
-import spectral
-import torch
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from matplotlib import pyplot as plt
 from scipy.ndimage import zoom
 from spectral.io import envi
+import torch
 from torch.utils import data
 from torch.utils.data import DataLoader
 from torchnet import meter
 
-from Functions.Basic_Functions.Load_HSI import load_hsi
-from Functions.Super_resolution.MSDformer import MSDformer
-from Functions.Super_resolution.common import default_conv
-from Functions.Visualization import Visualize_HSI
 from controllers.base_controller import BaseController
-from controllers.tab_visualisation_controller import TabVisualisationController
+from model.common import default_conv
+from model.MSDformer import MSDformer
+from utils.leaf_utils.basic import load_hsi, convert_hsi_to_rgb_qpixmap, create_header_by_template
 from widgets.tab_super_resolution_view import TabSuperResolutionView
 
 if typing.TYPE_CHECKING:
@@ -52,8 +48,7 @@ class TabSuperResolutionController(BaseController):
         self.tab_view.stack.setCurrentIndex(0)
 
     def on_load_file(self):
-        self.mode_output_image["low"] = \
-            self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB()
+        self.mode_output_image["low"] = convert_hsi_to_rgb_qpixmap(self.main_controller.hyperspectral_image)
         self.tab_view.vis_lr_label.set_image(self.mode_output_image["low"])
         self.mode_output_image["high"] = None
 
@@ -66,8 +61,7 @@ class TabSuperResolutionController(BaseController):
 
     def show_low_resolution(self):
         if self.mode_output_image["low"] is None:
-            self.mode_output_image["low"] = \
-                self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB()
+            self.mode_output_image["low"] = convert_hsi_to_rgb_qpixmap(self.main_controller.hyperspectral_image)
             self.tab_view.vis_lr_label.set_image(self.mode_output_image["low"])
 
         self.tab_view.stack.setCurrentIndex(0)
@@ -81,14 +75,7 @@ class TabSuperResolutionController(BaseController):
         self.logger.info(f"Show image of super resolution")
 
         if self.mode_output_image["high"] is None:
-            # From Functions.Visualization.Visualize_HSI.py - show_rgb
-            tuple_rgb_bands = Visualize_HSI.find_RGB_bands([float(i) for i in self.high_hsi.metadata["wavelength"]])
-            rgb_image = spectral.get_rgb(self.high_hsi, tuple_rgb_bands)  # (100, 54, 31)
-            rgb_image = (rgb_image * 255).astype(np.uint8)
-            rgb_image = rgb_image.copy()  # Spy don't load it to memory automatically, so must be copied
-            self.mode_output_image["high"] = \
-                TabVisualisationController.get_QPixmap(lambda buf : plt.imsave(buf, rgb_image))
-            self.logger.info(f"RGB Image Shape: {rgb_image.shape}")
+            self.mode_output_image["high"] = convert_hsi_to_rgb_qpixmap(self.high_hsi)
             self.tab_view.vis_sr_label.set_image(self.mode_output_image["high"])
 
         self.tab_view.stack.setCurrentIndex(1)
@@ -182,39 +169,16 @@ class TabSuperResolutionController(BaseController):
         image = np.stack(image_new, axis=2)
 
         envi.save_image(self.result_path + ".hdr", image, dtype=np.float32, interleave="bil", ext="bil", force=True)
-        create_header(
+        create_header_by_template(
             self.main_controller.hyperspectral_image_path,
             self.result_path + ".hdr",
             image.shape[0],
-            image.shape[1])
+            image.shape[1],
+            4)
 
         end_time = time.time()
         self.logger.info(f"Super-Resolution run time: {end_time - start_time}s")
         callback("finish")
-
-
-def create_header(template_file: str, save_path: str, n_lines: int, n_samples: int):
-    with open(template_file, "r") as file:
-        lines = file.readlines()
-    with open(save_path, "w") as file:
-        for line in lines:
-            if line.startswith("lines ="):
-                parts = line.strip().split("=")
-                key, value = parts[0], int(parts[1].strip())
-                new_value = n_lines
-                file.write(f"{key} = {new_value}\n")
-            elif line.startswith("samples ="):
-                parts = line.strip().split("=")
-                key, value = parts[0], int(parts[1].strip())
-                new_value = n_samples
-                file.write(f"{key} = {new_value}\n")
-            elif line.startswith("data type ="):
-                parts = line.strip().split("=")
-                key, value = parts[0], int(parts[1].strip())
-                new_value = 4
-                file.write(f"{key} = {new_value}\n")
-            else:
-                file.write(line)
 
 
 class HSResultData(data.Dataset):

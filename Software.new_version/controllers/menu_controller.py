@@ -7,10 +7,10 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMessageBox, QMenuBar, QFileDialog
 
 from controllers.base_controller import BaseController
+from utils.leaf_utils.basic import load_hsi
+
 if typing.TYPE_CHECKING:
     from controllers.main_controller import MainController
-
-from Functions.Basic_Functions import Load_HSI
 
 
 class MenuController(BaseController):
@@ -65,12 +65,8 @@ class MenuController(BaseController):
 
         # Load hyperspectral image using spectral library
         self.main_controller.update_hyperspectral_image(
-            Load_HSI.load_hsi(
-                self.main_controller.hyperspectral_image_path,
-                header_path
-            ),
-            header_path
-        )
+            load_hsi(self.main_controller.hyperspectral_image_path, header_path),
+            header_path)
         self.logger.info(f"Hyperspectral image loaded successfully from {image_path}")
 
     def quit(self):

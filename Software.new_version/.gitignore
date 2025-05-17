@@ -1,1 +1,3 @@
-*.log
+logs
+data
+model/trained_model

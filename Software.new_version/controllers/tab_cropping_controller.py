@@ -7,6 +7,7 @@ import spectral.image
 from spectral.io import envi
 
 from controllers.base_controller import BaseController
+from utils.leaf_utils.basic import convert_hsi_to_rgb_qpixmap
 from widgets.tab_cropping_view import TabCroppingView
 
 if typing.TYPE_CHECKING:
@@ -73,5 +74,5 @@ class TabCroppingController(BaseController):
 
     def on_load_file(self):
         self.tab_view.selectable_image_viewer.set_image(
-            self.main_controller.tab_widget_controller.tab_visualisation_controller.get_RGB())
+            convert_hsi_to_rgb_qpixmap(self.main_controller.hyperspectral_image))
         self.tab_view.save_as_hsi_button.setEnabled(True)

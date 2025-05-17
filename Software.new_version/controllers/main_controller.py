@@ -49,4 +49,4 @@ class MainController:
         self.tab_widget_controller.tab_cropping_controller.on_load_file()
         self.tab_widget_controller.tab_super_resolution_controller.on_load_file()
         self.tab_widget_controller.tab_calibration_controller.on_load_file()
-        self.tab_widget_controller.tab_unsupervised_segmentation_controller.on_load_file()
+        self.tab_widget_controller.tab_segmentation_controller.on_load_file()

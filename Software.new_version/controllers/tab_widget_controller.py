@@ -10,7 +10,7 @@ from controllers.tab_cropping_controller import TabCroppingController
 from controllers.tab_super_resolution_controller import TabSuperResolutionController
 from controllers.tab_visualisation_controller import TabVisualisationController
 from controllers.tab_calibration_controller import TabCalibrationController
-from controllers.tab_unsupervied_segmentation_controller import TabUnsupervisedSegmentationController
+from controllers.tab_segmentation_controller import TabSegmentationController
 from widgets.log_label import LogScrollArea
 
 if typing.TYPE_CHECKING:
@@ -38,8 +38,8 @@ class TabWidgetController(BaseController):
         self.tab_calibration_controller = TabCalibrationController(logger, main_controller)
         self.tab_widget.addTab(self.tab_calibration_controller.tab_view, "Calibration")
 
-        self.tab_unsupervised_segmentation_controller = TabUnsupervisedSegmentationController(logger, main_controller)
-        self.tab_widget.addTab(self.tab_unsupervised_segmentation_controller.tab_view, "Segmentation")
+        self.tab_segmentation_controller = TabSegmentationController(logger, main_controller)
+        self.tab_widget.addTab(self.tab_segmentation_controller.tab_view, "Segmentation")
 
         self.tab_log_label = LogScrollArea(self.logger, "logs/" + sorted(os.listdir("logs"))[-1])
         self.tab_widget.addTab(self.tab_log_label, "Logs")
@@ -60,10 +60,10 @@ class TabWidgetController(BaseController):
             lambda _, event:
                 self.logger.debug(f"tab_calibration_controller resized to {event.size().width()}x{event.size().height()}"),
             self.tab_calibration_controller.tab_view)
-        self.tab_unsupervised_segmentation_controller.tab_view.resizeEvent = types.MethodType(
+        self.tab_segmentation_controller.tab_view.resizeEvent = types.MethodType(
             lambda _, event:
-                self.logger.debug(f"tab_unsupervised_segmentation_controller resized to {event.size().width()}x{event.size().height()}"),
-            self.tab_unsupervised_segmentation_controller.tab_view)
+                self.logger.debug(f"tab_segmentation_controller resized to {event.size().width()}x{event.size().height()}"),
+            self.tab_segmentation_controller.tab_view)
         self.tab_log_label.resizeEvent = types.MethodType(
             lambda _, event:
                 self.logger.debug(f"tab_log_label resized to {event.size().width()}x{event.size().height()}"),
