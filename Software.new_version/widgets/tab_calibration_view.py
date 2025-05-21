@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QRadioButton, QHBoxLayout, QVBoxLayout, QLineEdit, QPushButton, QStackedWidget, \
-    QGroupBox, QFormLayout, QFrame, QCheckBox
+    QGroupBox, QFormLayout, QFrame
 
 from widgets.image_viewer import ImageViewer
 
@@ -100,16 +100,6 @@ class TabCalibrationView(QWidget):
         ref_file_layout.addWidget(self.ref_file_path)
         ref_file_layout.addWidget(self.ref_file_button)
         file_layout.addRow("Reference File:", ref_file_layout)
-
-        # Auto search checkbox and button
-        auto_search_layout = QHBoxLayout()
-        self.auto_search_checkbox = QCheckBox("Auto-search on load")
-        self.auto_search_checkbox.setChecked(True)
-        self.auto_search_button = QPushButton("Search Now")
-        auto_search_layout.addWidget(self.auto_search_checkbox)
-        auto_search_layout.addWidget(self.auto_search_button)
-        auto_search_layout.addStretch()
-        file_layout.addRow("Auto Search:", auto_search_layout)
 
         file_group.setLayout(file_layout)
         main_layout.addWidget(file_group)

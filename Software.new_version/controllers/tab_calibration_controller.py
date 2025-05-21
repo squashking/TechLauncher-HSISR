@@ -4,7 +4,7 @@ import os
 import re
 import typing
 
-from PySide6.QtWidgets import QFileDialog, QMessageBox
+from PySide6.QtWidgets import QFileDialog
 
 from controllers.base_controller import BaseController
 from utils.leaf_utils.basic import load_hsi, calibrate, convert_hsi_to_rgb_qpixmap
@@ -21,14 +21,12 @@ class TabCalibrationController(BaseController):
 
         self.dark_image = None
         self.ref_image = None
-        self.model_path = None
 
         self.tab_view = TabCalibrationView(self)
 
         self.tab_view.dark_file_button.clicked.connect(lambda: self.on_click_load_file_button("dark"))
         self.tab_view.ref_file_button.clicked.connect(lambda: self.on_click_load_file_button("ref"))
         self.tab_view.run_calibration_button.clicked.connect(self.run_calibration)
-        self.tab_view.auto_search_button.clicked.connect(self.auto_search_files)
 
         self.tab_view.input_only_button.toggled.connect(lambda: self.tab_view.stack.setCurrentIndex(0))
         self.tab_view.output_only_button.toggled.connect(lambda: self.tab_view.stack.setCurrentIndex(1))
@@ -54,9 +52,8 @@ class TabCalibrationController(BaseController):
         self.tab_view.input_view.set_image(rgb_qpixmap)
         self.tab_view.input_view_0.set_image(rgb_qpixmap)
 
-        # Auto search for related files if enabled
-        if self.tab_view.auto_search_checkbox.isChecked():
-            self.auto_search_files()
+        # Auto search for related files by default
+        self.auto_search_files()
 
         self.tab_view.input_only_button.setEnabled(True)
         self.tab_view.output_only_button.setEnabled(False)
@@ -107,8 +104,7 @@ class TabCalibrationController(BaseController):
         before the currently loaded file. The earliest timestamp is considered
         the dark file and the second earliest is the reference file.
         
-        If an error occurs during auto-search, previously loaded dark and reference
-        files are cleared to prevent confusion.
+        If files are not found, the input fields remain empty.
         """
         if not self.main_controller.hyperspectral_image_path:
             self.logger.warning("No input file loaded, cannot auto-search for related files")
@@ -140,9 +136,6 @@ class TabCalibrationController(BaseController):
         
         if not current_timestamp:
             self.logger.warning("Could not extract timestamp from current file")
-            if self.main_controller.tab_widget_controller.tab_widget.currentWidget() == self.tab_view:
-                QMessageBox.warning(self.main_window, "Auto-Search Error",
-                                    "Could not extract timestamp from current file. Manual selection required.")
             return
         
         # Look for files with _calibFrame suffix in the BIL format
@@ -153,9 +146,6 @@ class TabCalibrationController(BaseController):
         
         if len(calib_files) < 2:
             self.logger.warning(f"Found only {len(calib_files)} calibration files, need at least 2")
-            if self.main_controller.tab_widget_controller.tab_widget.currentWidget() == self.tab_view:
-                QMessageBox.information(self.main_window, "Auto-Search Results",
-                                        f"Found only {len(calib_files)} calibration files with '_calibFrame' suffix. Need both dark and reference files.")
             return
         
         # Extract timestamps from filenames and keep only those before current timestamp
@@ -180,9 +170,6 @@ class TabCalibrationController(BaseController):
         
         if len(calib_files_with_time) < 2:
             self.logger.warning("Could not find enough calibration files with valid timestamps before current file")
-            if self.main_controller.tab_widget_controller.tab_widget.currentWidget() == self.tab_view:
-                QMessageBox.information(self.main_window, "Auto-Search Results",
-                                        "Could not find enough calibration files with valid timestamps before current file.")
             return
         
         # The two most recent calibration files before the current file
@@ -195,10 +182,3 @@ class TabCalibrationController(BaseController):
         # Load the files
         self._load_file("dark", dark_file)
         self._load_file("ref", ref_file)
-        
-        # Notify user
-        if self.main_controller.tab_widget_controller.tab_widget.currentWidget() == self.tab_view:
-            QMessageBox.information(self.main_window, "Auto-Search Results",
-                                    "Found calibration files:\n" + \
-                                    f"Reference (most recent): {os.path.basename(ref_file)}\n" + \
-                                    f"Dark (second most recent): {os.path.basename(dark_file)}")
