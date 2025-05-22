@@ -1,0 +1,17 @@
+[2025-05-21 17:11:55][DEBUG][main_window.py:21] Window resized to 1200x821
+[2025-05-21 17:11:55][DEBUG][tab_widget_controller.py:49] tab_visualisation_controller resized to 813x788
+[2025-05-21 17:11:55][DEBUG][tab_widget_controller.py:49] tab_visualisation_controller resized to 1171x788
+[2025-05-21 17:11:57][DEBUG][tab_widget_controller.py:57] tab_super_resolution_controller resized to 1171x788
+[2025-05-21 17:11:59][DEBUG][tab_widget_controller.py:61] tab_calibration_controller resized to 1171x788
+[2025-05-21 17:12:00][DEBUG][tab_widget_controller.py:53] tab_cropping_controller resized to 1171x788
+[2025-05-21 17:12:25][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-06-51_round-0_cam-1_tray-1.bil
+[2025-05-21 17:12:25][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-06-51_round-0_cam-1_tray-1.hdr
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:115] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/2025-04-17
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:132] Current file timestamp: 2025-04-17 13:06:51
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:179] Auto-detected reference file (nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-57_round-0_cam-1_calibFrame.bil
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:180] Auto-detected dark file (second nearest timestamp): /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-52_round-0_cam-1_calibFrame.bil
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:84] Header dark file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-52_round-0_cam-1_calibFrame.hdr
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:88] dark image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-52_round-0_cam-1_calibFrame.bil
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:84] Header ref file located at: /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-57_round-0_cam-1_calibFrame.hdr
+[2025-05-21 17:12:29][INFO][tab_calibration_controller.py:88] ref image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-04-57_round-0_cam-1_calibFrame.bil
+[2025-05-21 17:12:29][INFO][menu_controller.py:70] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/2025-04-17/2025-04-17--13-06-51_round-0_cam-1_tray-1.bil

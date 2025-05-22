@@ -1,0 +1,5 @@
+[2025-05-15 17:17:17][DEBUG][main_window.py:21] Window resized to 1200x800
+[2025-05-15 17:17:17][DEBUG][tab_widget_controller.py:41] tab_view_1 resized to 813x520
+[2025-05-15 17:17:17][DEBUG][tab_widget_controller.py:41] tab_view_1 resized to 1171x767
+[2025-05-15 17:17:19][DEBUG][tab_widget_controller.py:49] tab_view_3 resized to 1171x767
+[2025-05-15 17:17:25][ERROR][tab_calibration_controller.py:124] No model file selected or invalid file.

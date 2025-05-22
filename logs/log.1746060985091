@@ -1,0 +1,14 @@
+[2025-05-01 10:56:25][DEBUG][main_window.py:21] Window resized to 1200x800
+[2025-05-01 10:56:25][DEBUG][tab_widget_controller.py:41] tab_view_1 resized to 813x520
+[2025-05-01 10:56:25][DEBUG][tab_widget_controller.py:41] tab_view_1 resized to 1171x767
+[2025-05-01 10:56:26][DEBUG][tab_widget_controller.py:45] tab_view_2 resized to 1171x767
+[2025-05-01 10:56:27][DEBUG][tab_widget_controller.py:49] tab_view_3 resized to 1171x767
+[2025-05-01 10:56:35][INFO][menu_controller.py:57] Selected image file: /Users/zhenwang/Desktop/LEAF/data/calibration.bil
+[2025-05-01 10:56:35][INFO][menu_controller.py:64] Header file located at: /Users/zhenwang/Desktop/LEAF/data/calibration.hdr
+[2025-05-01 10:56:35][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:56:35][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:56:35][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:56:35][INFO][tab_visualisation_controller.py:85] RGB Image Shape: (50, 500, 3)
+[2025-05-01 10:56:35][INFO][tab_calibration_controller.py:164] Searching for calibration files in directory: /Users/zhenwang/Desktop/LEAF/data
+[2025-05-01 10:56:35][WARNING][tab_calibration_controller.py:180] Could not extract timestamp from current file
+[2025-05-01 10:56:37][INFO][menu_controller.py:74] Hyperspectral image loaded successfully from /Users/zhenwang/Desktop/LEAF/data/calibration.bil

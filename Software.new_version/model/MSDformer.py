@@ -1,10 +1,6 @@
-import torch
-import math
-import torch.nn as nn
-from common import *
+from .common import *
 from einops import rearrange
-from timm.layers import DropPath, to_2tuple, trunc_normal_
-
+from timm.models.layers import DropPath
 
 class MSDformer(nn.Module):
     def __init__(self, n_subs, n_ovls, n_colors, scale, n_feats, n_DCTM,  conv=default_conv):
@@ -20,8 +16,8 @@ class MSDformer(nn.Module):
         self.upsample = Upsampler(conv, scale, n_feats)
         self.tail = conv(n_feats, n_colors, 3)
 
-    def forward(self, x, lms):
-        x = self.head(x)
+    def forward(self, x, lms, device):
+        x = self.head(x, device)
         xi = self.body[0](x)
         for i in range(1,self.N):
             xi = self.body[i](xi)
@@ -60,10 +56,10 @@ class MSAMG(nn.Module):
             self.middle.append(conv(n_feats, n_subs, 1))
         self.tail = conv(n_colors, n_feats, 1)
 
-    def forward(self, x):
+    def forward(self, x, device):
         b, c, h, w = x.shape
-        y = torch.zeros(b, c, h, w).cuda()
-        channel_counter = torch.zeros(c).cuda()
+        y = torch.zeros(b, c, h, w).to(device)
+        channel_counter = torch.zeros(c).to(device)
         for g in range(self.G):
             sta_ind = self.start_idx[g]
             end_ind = self.end_idx[g]

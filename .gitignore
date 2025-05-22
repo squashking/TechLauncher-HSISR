@@ -1,4 +1,8 @@
 *.pyc
-__pycache__/
-Software/GUI/temp_sr/
-Software/GUI/One_sample/
+__pycache__
+.idea
+Software/GUI/temp_sr
+Software/GUI/One_sample
+Software/GUI/Test
+Software/GUI/calibration_input
+Software/GUI/result_file

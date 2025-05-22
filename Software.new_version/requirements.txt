@@ -1,0 +1,12 @@
+einops
+h5py
+matplotlib
+numpy
+pyapriltags
+PyQt5
+PySide6
+scipy
+spectral
+timm
+torch
+torchnet

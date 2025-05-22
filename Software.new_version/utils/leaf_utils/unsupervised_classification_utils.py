@@ -1,6 +1,7 @@
 # unsupervised_classification.py
 
 import numpy as np
+from PySide6.QtWidgets import QMessageBox
 from spectral import kmeans
 from pyapriltags import Detector
 import cv2
@@ -142,7 +143,29 @@ def detect_apriltags(hsi):
             break
 
     if dets is None:
-        raise ValueError(f"No AprilTags found in bands {candidates}.")
+        QMessageBox.warning(
+            None,
+            "AprilTag Detection",
+            "A sufficient number of AprilTags are not detected, no cropping operation is performed."
+        )
+        final_detections = []
+        # 定义四个角的中心点
+        coords = {
+            "tl": (0, 0),
+            "tr": (W - 1, 0),
+            "bl": (0, H - 1),
+            "br": (W - 1, H - 1),
+        }
+        for key, (x, y) in coords.items():
+            # 用重复的点阵表示“角点”，只要保证 build_mask_with_detections 不报错即可
+            corner_pts = np.array([[x, y]] * 4, dtype=np.float32)
+            center_pt = np.array([x, y], dtype=np.float32)
+            final_detections.append({
+                "tag_family": "",  # 空串或任意占位
+                "corners": corner_pts,
+                "center": center_pt
+            })
+        return final_detections
 
     # 2) Partition into four corners by tag center
     half_w, half_h = W / 2.0, H / 2.0
@@ -193,7 +216,7 @@ def detect_apriltags(hsi):
     return final_detections
 
 
-def preprocess_hsi_with_apriltag_multiscale(hsi, file_path, downscale_width=800):
+def preprocess_hsi_with_apriltag_multiscale(hsi, downscale_width=800):
     """
     1) Ensure hsi is a NumPy ndarray.
     2) Verify .bil extension.
@@ -208,8 +231,8 @@ def preprocess_hsi_with_apriltag_multiscale(hsi, file_path, downscale_width=800)
     H, W, _ = hsi.shape
 
     # 2) Extension check
-    if not file_path.lower().endswith('.bil'):
-        raise ValueError("The file extension is not .bil. Please provide a valid .bil file.")
+    # if not file_path.lower().endswith('.bil'):
+    #     raise ValueError("The file extension is not .bil. Please provide a valid .bil file.")
 
     # 3) AprilTag detection
     final_detections = detect_apriltags(hsi)
