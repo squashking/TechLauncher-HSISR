@@ -2,7 +2,7 @@ import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QPixmap, QImage
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy, QTabWidget, QSpinBox, \
-    QProgressBar, QLineEdit, QComboBox, QGroupBox, QMenu, QFileDialog
+    QProgressBar, QLineEdit, QComboBox, QGroupBox, QMenu, QFileDialog, QFrame
 
 from utils.leaf_utils.basic import plot_spectrum
 
@@ -13,10 +13,12 @@ class TabSegmentationView(QWidget):
 
         self.controller = controller
 
+        self._pixmap = None
+
         # Create main layout
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(20)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(20)
 
         # Create NDVI display label
         self.ndvi_display = QLabel("No selection")
@@ -26,11 +28,25 @@ class TabSegmentationView(QWidget):
         # Use ClassificationImageLabel instead of QLabel
         self.visualization_label_class = ClassificationImageLabel(self.ndvi_display, self)
         self.visualization_label_class.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.visualization_label_class.setFixedHeight(539)
-        self.visualization_label_class.setFixedWidth(700)
+        self.visualization_label_class.setMinimumHeight(540)
+        self.visualization_label_class.setMinimumWidth(700)
         self.visualization_label_class.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.visualization_label_class.setText("No image loaded")
-        main_layout.addWidget(self.visualization_label_class, alignment=Qt.AlignmentFlag.AlignCenter)  # Center the image
+
+        self.visualization_frame = QFrame(self)
+        self.visualization_frame.setMinimumHeight(self.visualization_label_class.height() + 10)
+        self.visualization_frame.setMinimumWidth(self.visualization_label_class.width() + 10)
+        self.visualization_frame.setLineWidth(2)
+        self.visualization_frame.setStyleSheet("border: 1px solid #ccc;")
+        self.visualization_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        self.frame_layout = QVBoxLayout(self)
+        self.frame_layout.addWidget(self.visualization_label_class, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.frame_layout.setSpacing(5)
+        self.frame_layout.setStretch(0, 1)
+        self.visualization_frame.setLayout(self.frame_layout)
+
+        self.main_layout.addWidget(self.visualization_frame)
 
         # --------- 下部操作面板与 NDVI 显示窗口 ---------
         lower_layout = QHBoxLayout()
@@ -150,11 +166,24 @@ class TabSegmentationView(QWidget):
         right_layout.addStretch(1)
         lower_layout.addLayout(right_layout, 1)
 
-        main_layout.addStretch()
-        main_layout.addLayout(lower_layout)
+        self.main_layout.setStretch(0, 2)
+        self.main_layout.setStretch(1, 1)
+        self.main_layout.addLayout(lower_layout)
 
-        self.setLayout(main_layout)
+        self.setLayout(self.main_layout)
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.visualization_label_class.cluster_map is None:
+            self.set_resized_pixmap()
+
+    def set_resized_pixmap(self):
+        if self._pixmap is not None:
+            self.visualization_label_class.setPixmap(self._pixmap.scaled(
+                self.visualization_frame.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            ))
 
 class ClassificationImageLabel(QLabel):
     def __init__(self, ndvi_display, parent=None):
@@ -194,6 +223,10 @@ class ClassificationImageLabel(QLabel):
         self.base_rgb_image = rgb_arr.copy()
 
     def mousePressEvent(self, event):
+        if self.cluster_map is None:
+            super().mousePressEvent(event)
+            return
+
         if event.button() == Qt.MouseButton.LeftButton:
             pos = event.pos()
             x = pos.x()

@@ -28,7 +28,15 @@ class TabSegmentationController(BaseController):
 
     def on_load_file(self):
         self.tab_view.classification_inputfile_label.setText(f"File path: {self.main_controller.hyperspectral_image_path}")
-        self.tab_view.visualization_label_class.setPixmap(convert_hsi_to_rgb_qpixmap(self.main_controller.hyperspectral_image))
+
+        pixmap = convert_hsi_to_rgb_qpixmap(self.main_controller.hyperspectral_image)
+        self.tab_view._pixmap = pixmap
+
+        self.tab_view.visualization_label_class.cluster_map = None
+        self.tab_view.visualization_label_class.selected_clusters = set()
+        self.tab_view.visualization_label_class.ndvi_display.setText("No selection")
+
+        self.tab_view.set_resized_pixmap()
 
     def run_unsupervised_classification(self):
         try:
